@@ -31,13 +31,10 @@ using std::string;
 //utility
 using std::pair;
 
-#include <boost/lexical_cast.hpp>
-
-//boost/lexical_cast
-using boost::lexical_cast;
-using boost::bad_lexical_cast;
-
 class Event;
+
+typedef pair<char, int> SendPair;
+map<SendPair, int> messages;
 
 class Action
 {
@@ -57,12 +54,12 @@ public:
     operator string() {return "<AtomicAction>"; }
 };
 
-typedef pair<char, int> SendPair;
 class SendAction : public Action
 {
 public:
     list<SendPair> receivers;
-    SendAction(string send) : Action('S')
+    int timestamp;
+    SendAction(string send, int ts) : Action('S'), timestamp(ts)
     {
         stringstream stream(send);
         while(stream)
@@ -71,7 +68,11 @@ public:
             int id = -1;
             stream >> p >> id;
             if( p != '\0' && id != -1 )
-                receivers.push_back(SendPair(p, id));
+            {
+                SendPair receiver(p, id);
+                receivers.push_back(receiver);
+                messages[receiver] = timestamp;
+            }
         }
     }
 
@@ -109,48 +110,61 @@ class Event
     char process_;
     int eventid_;
     Action *action_;
+    int clock_;
 public:
-    Event(char proc, int id, Action *action) : process_(proc), eventid_(id), action_(action) {}
+    Event(char proc, int id, Action *action, int clock) : process_(proc), eventid_(id), action_(action), clock_(clock) {}
     ~Event() { delete action_; }
 
+    int clock() { return clock_; }
+
     friend std::ostream & operator<< (std::ostream & out, Event *e);
+    friend Event* findevent(SendPair);
     friend bool compareEvents(Event *, Event *);
 };
 
 map<char, int> processes;
-list<Event*> eventlist;
+list<Event*> events;
+
+Event *findevent(SendPair p)
+{
+    for (list<Event*>::iterator it = events.begin(); it != events.end(); ++it)
+    {
+        if(p.first == (*it)->process_ && p.second == (*it)->eventid_)
+        {
+            return *it;
+        }
+    }
+    return NULL;
+}
 
 bool compareEvents(Event* left, Event* right)
 {
 
-    if(left->process_ == right->process_
-        && left->eventid_ < right->eventid_) 
+    if(left->process_ == right->process_)
     {
-        return true;
-    }
-    else if(left->action_->type_ == 'R' && right->action_->type_ == 'S')
-    {
-        // left is a receiver
-        if( ( (SendAction*)right->action_)->receiverscontains(SendPair(left->process_, left->eventid_)))
-        {
+        if(left->eventid_ < right->eventid_)
+            return true;
+        else
             return false;
-        }
-
     }
-    else if(left->action_->type_ == 'S' && right->action_->type_ == 'R')
+    else
     {
-        // right is a receiver
-        if( ( (SendAction*)left->action_)->receiverscontains(SendPair(right->process_, right->eventid_)))
+        if(left->clock() < right->clock())
         {
             return true;
         }
+        else if(left->clock() == right->clock())
+        {
+            if (processes[left->process_] < processes[right->process_])
+                return true;
+            else
+                return false;
+        }
+        else
+        {
+            return false;
+        }
     }
-    else if(left->eventid_ == right->eventid_
-        && processes[left->process_] < processes[right->process_])
-    {
-        return true;
-    }
-    else return false;
 }
 
 int main(int argc, char *argv[])
@@ -171,10 +185,18 @@ int main(int argc, char *argv[])
         Event *e;
         Action *a;
         char proc = '\0', action = '\0';
-        int event = -1;
-        inevents >> proc >> event >> action;
+        int eventid = -1;
+        inevents >> proc >> eventid >> action;
 
-        if ( proc == '\0' || action == '\0' || event == -1 ) continue;
+        if ( proc == '\0' || action == '\0' || eventid == -1 ) continue;
+
+        int clock = 0;
+        Event *event = findevent(SendPair(proc, eventid-1));
+        if(event)
+        {
+            clock = event->clock()+1;
+        }
+
         string line;
         switch(action)
         {
@@ -183,21 +205,26 @@ int main(int argc, char *argv[])
             break;
         case 'S':
             getline(inevents, line);
-            a = new SendAction(line);
+            a = new SendAction(line, clock);
             break;
         case 'R':
             a = new ReceiveAction();
+            int msgts = messages[SendPair(proc, eventid)];
+            if(msgts > clock)
+            {
+                clock = msgts+1;
+            }
             break;
         }
 
-        e = new Event(proc, event, a);
+        e = new Event(proc, eventid, a, clock);
 
-        eventlist.push_back(e);
+        events.push_back(e);
     }
 
-    eventlist.sort(compareEvents);
+    events.sort(compareEvents);
     stringstream stream;
-    for (list<Event*>::iterator it = eventlist.begin(); it != eventlist.end(); ++it)
+    for (list<Event*>::iterator it = events.begin(); it != events.end(); ++it)
     {
         stream << *it << "\t=>\t";
     }
@@ -205,7 +232,7 @@ int main(int argc, char *argv[])
     string output = stream.str();
     output = output.substr(0, output.rfind("\t=>"));
     cout << output << endl;
-    eventlist.clear();
+    events.clear();
     return 0;
 }
 
