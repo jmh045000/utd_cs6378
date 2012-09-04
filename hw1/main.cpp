@@ -36,6 +36,10 @@ class Event;
 typedef pair<char, int> SendPair;
 map<SendPair, int> messages;
 
+#ifdef DEBUG
+std::ostream & operator<<(std::ostream &, SendPair);
+#endif
+
 class Action
 {
 protected:
@@ -206,8 +210,17 @@ int main(int argc, char *argv[])
         if(event)
         {
             clock = event->clock()+1;
+#ifdef DEBUG
+            cout << event;
+#endif
         }
-
+        else
+        {
+#ifdef DEBUG
+            cout << "Did not find event (" << proc << ", " << eventid-1 << endl;
+#endif
+        }
+        
         string line;
         switch(action)
         {
@@ -221,7 +234,10 @@ int main(int argc, char *argv[])
         case 'R':
             a = new ReceiveAction();
             int msgts = messages[SendPair(proc, eventid)];
-            if(msgts > clock)
+#ifdef DEBUG
+            cout << "pair: " << SendPair(proc, eventid) << ", ts=" << messages[SendPair(proc, eventid)] << endl;
+#endif
+            if(msgts >= clock)
             {
                 clock = msgts+1;
             }
@@ -231,6 +247,9 @@ int main(int argc, char *argv[])
         e = new Event(proc, eventid, a, clock);
 
         events.push_back(e);
+#ifdef DEBUG
+        cout << "Added event: " << e;
+#endif
     }
 
     events.sort(compareEvents);
@@ -250,7 +269,6 @@ int main(int argc, char *argv[])
 #ifndef DEBUG
 std::ostream & operator<<(std::ostream &out, Action *a)
 {
-    out << string(*a);
     return out;
 }
 
@@ -261,6 +279,11 @@ std::ostream & operator<< (std::ostream & out, Event *e)
 }
 
 #else
+std::ostream & operator<<(std::ostream &out, SendPair p)
+{
+    out << "(" << p.first << ", " << p.second << ")";
+    return out;
+}
 std::ostream & operator<<(std::ostream &out, Action *a)
 {
     out << string(*a);
@@ -269,7 +292,7 @@ std::ostream & operator<<(std::ostream &out, Action *a)
 
 std::ostream & operator<< (std::ostream & out, Event *e)
 {
-    out << "<Event: " << e->process_ << e->eventid_ << ", clock=" << e->clock_ << ", " << e->action_;
+    out << "<Event: Process=" << e->process_ << e->eventid_ << ", clock=" << e->clock_ << ", " << e->action_ << endl;
     return out;
 }
 
