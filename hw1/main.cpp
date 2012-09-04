@@ -170,6 +170,11 @@ bool compareEvents(Event* left, Event* right)
 int main(int argc, char *argv[])
 {
     ifstream inprocs("processes.txt");
+    if(!inprocs)
+    {
+        cerr << "Failed to open processes.txt" << endl;
+        return -1;
+    }
     int pos = 0;
     while(inprocs)
     {
@@ -178,7 +183,13 @@ int main(int argc, char *argv[])
 
         processes[p] = pos++;
     }
+
     ifstream inevents("events.txt");
+    if(!inevents)
+    {
+        cerr << "Failed to open events.txt" << endl;
+        return -1;
+    }
 
     while(inevents)
     {
@@ -231,11 +242,12 @@ int main(int argc, char *argv[])
 
     string output = stream.str();
     output = output.substr(0, output.rfind("\t=>"));
-    cout << output << endl;
+    cout << output;
     events.clear();
     return 0;
 }
 
+#ifndef DEBUG
 std::ostream & operator<<(std::ostream &out, Action *a)
 {
     out << string(*a);
@@ -247,4 +259,19 @@ std::ostream & operator<< (std::ostream & out, Event *e)
     out << e->process_ << e->eventid_;
     return out;
 }
+
+#else
+std::ostream & operator<<(std::ostream &out, Action *a)
+{
+    out << string(*a);
+    return out;
+}
+
+std::ostream & operator<< (std::ostream & out, Event *e)
+{
+    out << "<Event: " << e->process_ << e->eventid_ << ", clock=" << e->clock_ << ", " << e->action_;
+    return out;
+}
+
+#endif
 

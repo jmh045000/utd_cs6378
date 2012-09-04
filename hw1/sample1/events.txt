@@ -1,0 +1,15 @@
+P	1	S	Q	2
+Q	1	S	P	2	R	4
+R	1	A
+Q	2	R
+P	2	R
+R	2	S	Q	7
+Q	3	A
+Q	4	S	R	3
+P	3	A
+Q	5	S	P	4
+R	3	R
+Q	6	A
+P	4	R
+R	4	R
+Q	7	R

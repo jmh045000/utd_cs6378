@@ -1,10 +1,16 @@
 
-CXX=g++
+CXX = g++
+LD = g++
+CFLAGS := -O2
 
 all: main
 
+.PHONY: debug
+debug:
+	$(MAKE) CFLAGS="$(CFLAGS) -DDEBUG" all
+
 main: main.o
-	$(CXX) $^ -o $@
+	$(LD) $^ -o $@
 
 .cpp.o:
 	@ mkdir -p .depend
