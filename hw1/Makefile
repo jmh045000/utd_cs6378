@@ -3,13 +3,14 @@ CXX = g++
 LD = g++
 CFLAGS := -O2
 
-all: main
+all: hw1
 
-main: main.o
+hw1: hw1.o
 	$(LD) $^ -o $@
 
 .PHONY: debug clean dist
 debug:
+	$(MAKE) clean
 	$(MAKE) CFLAGS="$(CFLAGS) -DDEBUG" all
 
 clean:
@@ -19,7 +20,7 @@ clean:
 dist:
 	$(MAKE) clean
 	mkdir jmh045000
-	cp *.cpp Makefile jmh045000
+	cp *.cpp Makefile README jmh045000
 	zip -r jmh045000.zip jmh045000/
 	rm -rf jmh045000/
 

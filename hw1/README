@@ -1,0 +1,7 @@
+To compile:
+    'make'
+To run:
+    './hw1'
+
+It will write to a file 'totalordering.txt'
+If you want a more detailed output, run 'make debug'

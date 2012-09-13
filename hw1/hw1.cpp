@@ -261,7 +261,12 @@ int main(int argc, char *argv[])
 
     string output = stream.str();
     output = output.substr(0, output.rfind("\t=>"));
+#ifdef DEBUG
     cout << output;
+#else
+    ofstream total("totalordering.txt");
+    total << output;
+#endif
     events.clear();
     return 0;
 }
