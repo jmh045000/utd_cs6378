@@ -1,12 +1,20 @@
 
 CXX = g++
 LD = g++
-CFLAGS := -O2
+CFLAGS := -O2 -Iinclude/
+LDFLAGS := -Llib/
 
-all: hw2
+all: hw2 gmp
+
+gmp: lib/libgmp.a
+
+lib/libgmp.a: gmp-5.0.5.tar.bz2
+	rm -rf gmp-5.0.5
+	tar xf $^
+	cd gmp-5.0.5 ; ./configure --prefix $(PWD) --enable-cxx ; $(MAKE) ; $(MAKE) install
 
 hw2: hw2.o
-	$(LD) $^ -o $@
+	$(LD) $(LDFLAGS) -lgmpxx -lgmp $^ -o $@
 
 .PHONY: debug clean dist
 debug:
