@@ -1,0 +1,18 @@
+P	1	A
+P	2	S	Q
+Q	1	R	P
+Q	2	S	R
+report
+P	3	I
+R	1	R	Q
+R	2	S	Q
+Q	3	R	R
+R	3	S	P
+R	4	I
+report
+P	4	R	R
+Q	4	I
+P	5	R	Q
+P	6	I
+P	7	R	R
+report

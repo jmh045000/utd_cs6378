@@ -1,0 +1,27 @@
+A	1	A
+report
+A	2	S	Z
+report
+A	3	A
+Z	1	R	A
+Z	2	A
+report
+A	4	S	L
+report
+A	5	I
+report
+Z	3	S	L
+Z	4	I
+A	6	R	Z
+A	7	I
+report
+L	1	R	Z
+report
+L	2	R	A
+report
+L	3	A
+L	4	I
+report
+A	8	R	L
+A	9	I
+report
