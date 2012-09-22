@@ -2,19 +2,27 @@
 CXX = g++
 LD = g++
 CFLAGS := -O2 -Iinclude/
-LDFLAGS := -Llib/
+LDFLAGS := -Llib/ -Wl,-rpath,'$(PWD)/lib/' 
 
-all: hw2 gmp
+OBJS = hw2.o
 
-gmp: lib/libgmp.a
+all: hw2
+
+
+gmp-5.0.5.tar.bz2:
+	wget ftp://ftp.gmplib.org/pub/gmp-5.0.5/gmp-5.0.5.tar.bz2
 
 lib/libgmp.a: gmp-5.0.5.tar.bz2
 	rm -rf gmp-5.0.5
 	tar xf $^
 	cd gmp-5.0.5 ; ./configure --prefix $(PWD) --enable-cxx ; $(MAKE) ; $(MAKE) install
 
-hw2: hw2.o
-	$(LD) $(LDFLAGS) -lgmpxx -lgmp $^ -o $@
+gmp: lib/libgmp.a
+
+$(OBJS): gmp
+
+hw2: $(OBJS)
+	$(LD) $(LDFLAGS) -lgmpxx -lgmp $(OBJS) -o $@
 
 .PHONY: debug clean dist
 debug:
@@ -22,8 +30,8 @@ debug:
 	$(MAKE) CFLAGS="$(CFLAGS) -DDEBUG" all
 
 clean:
-	rm -f main *.o
-	rm -rf .depend
+	rm -f hw2 *.o 
+	rm -rf .depend lib include share gmp-5.0.5
 
 dist:
 	$(MAKE) clean
