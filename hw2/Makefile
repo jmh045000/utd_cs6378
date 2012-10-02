@@ -35,7 +35,7 @@ clean:
 dist:
 	$(MAKE) clean
 	mkdir jmh045000
-	cp *.cpp Makefile README jmh045000
+	cp *.h *.cpp Makefile README jmh045000
 	zip -r jmh045000.zip jmh045000/
 	rm -rf jmh045000/
 
