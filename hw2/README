@@ -1,0 +1,17 @@
+
+TO COMPILE
+'make'
+If you're on cs1.utdallas.edu
+'make -j12'
+will compile much faster
+
+This build takes a few minutes, it first downloads the GNU GMP library from the internet, extracts it, makes it, then compiles my source code.
+(I asked the professor before using GNU GMP, and he said it was fine.)
+
+TO RUN
+'./hw2'
+
+
+My code resides in hw2.cpp Weight.{h,cpp} Events.{h,cpp}
+
+-James Hall
