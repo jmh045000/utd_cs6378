@@ -5,7 +5,7 @@ CFLAGS := -O2 -Iinclude/
 LDFLAGS :=  
 HIDE := @
 
-OBJS = hw3.o
+OBJS = hw3.o Socket.o
 
 all: hw3
 
