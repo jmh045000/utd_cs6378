@@ -2,16 +2,17 @@
 CXX = g++
 LD = g++
 CFLAGS := -O2 -Iinclude/
-LDFLAGS :=  
+LDFLAGS := -lpthread
 HIDE := @
 
-OBJS = hw3.o Socket.o
+OBJS = hw3.o Message.o Socket.o
 
 all: hw3
 
 hw3: $(OBJS)
 	@echo LD $@
 	$(HIDE) $(LD) $(LDFLAGS) $(OBJS) -o $@
+	cp $@ ~
 
 .PHONY: debug clean dist
 debug:

@@ -30,6 +30,8 @@ extern "C"
 
 #include "Socket.h"
 
+#define SOCKET_DEBUG
+
 //copy constructor
 Socket::Socket(const Socket &copy)
 {
@@ -48,7 +50,7 @@ Socket::Socket(string host, uint16_t port) :
         struct sockaddr_in  saddr_in;
         struct sockaddr     saddr; };
         if( (h_server = gethostbyname(host.c_str())) == NULL) {
-            throw exception();
+            cerr << __LINE__ << endl; throw exception();
         }
 
         saddr_in.sin_family = AF_INET;
@@ -77,17 +79,23 @@ Socket::~Socket()
 void Socket::createFD(void)
 {
     if(sockFD != -1)
-        throw exception();
+    {
+        cerr << __LINE__ << endl; throw exception();
+    }
     if( (sockFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
-        throw exception();
+    {
+        cerr << __LINE__ << endl; throw exception();
+    }
 }
 
 //connect the socket
-//  thrown on failure
+//  cerr << __LINE__ << endl; thrown on failure
 void Socket::connectFD(struct sockaddr * saddr, uint32_t retries) //default to retry 4 times
 {
     if(connected)
-        throw exception();
+    {
+        cerr << __LINE__ << endl; throw exception();
+    }
     if(sockFD == -1) {
         createFD();
     }
@@ -112,7 +120,9 @@ void Socket::connectFD(struct sockaddr * saddr, uint32_t retries) //default to r
             sleep(1);
     }
     if (!connected)
-        throw exception();
+    {
+        cerr << __LINE__ << endl; throw exception();
+    }
 }
 
 //send current contents of myBuf to peer
@@ -133,7 +143,7 @@ int Socket::output()
         std::stringstream ss;
         ss << "error sending: " << errno;
         perror("send()");
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
     else {
         cerr << "Odd send...  expected: " << length  << " sent: " << retVal << endl;
@@ -150,7 +160,7 @@ int Socket::input()
     if (!connected)
     {
         cerr << __FILE__"," << __LINE__ << endl;
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
 
     int retVal = recv(sockFD, buffer, 4096, 0);
@@ -160,16 +170,16 @@ int Socket::input()
     }
     else if(retVal < 0)
     {
-        strerror_r(errno, buffer, 4096);
-        throw exception();
+        cout << strerror(errno) << endl;
+        cerr << errno << ":" << __LINE__ << endl; throw exception();
     }
     if (retVal == 0) {
         connected=false;
         close(sockFD);
         sockFD=-1;
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
-    
+
     return retVal;
 }
 
@@ -182,24 +192,24 @@ ListenSocket::ListenSocket(uint16_t port)
     servaddr.sin_addr.s_addr    = htonl(INADDR_ANY);
 
     if( (sockFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
 
     int       reuse=1;
     /* set SO_REUSEADDR so echoserv will be able to be re-run instantly on shutdown */
     if(setsockopt(sockFD, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) == -1) {
         close(sockFD);
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
 
     if( bind( sockFD, (const sockaddr *)&servaddr, sizeof(servaddr) ) ) {
         close(sockFD);
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
     if( listen(sockFD, 20) < 0 )
     {
         close(sockFD);
-        throw exception();
+        cerr << __LINE__ << endl; throw exception();
     }
 }
 
