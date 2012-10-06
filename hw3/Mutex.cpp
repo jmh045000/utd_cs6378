@@ -1,4 +1,6 @@
 
+#ifndef FAKEMUTEX
+
 #include <string>
 #include <vector>
 
@@ -16,60 +18,59 @@ public:
     ~LocalMutex() { pthread_mutex_unlock(&mutex_); }
 };
 
-void *listener(void *p)
+void *Mutex::listener(void *p)
 {
     listenerparams *params = (listenerparams*)p;
-    while ( params->sockets->size() !=  params->numhosts)
-    {
-        Socket s( params->serversocket->acceptConnection() );
-        {
-            LocalMutex m;
-            params->sockets->push_back( new Socket(s) );
-        }
-    }
-
-    return NULL;
-}
-
-void *connector(void *p)
-{
-    connectorparams *params = (connectorparams*)p;
-
-    Socket s(params->host, params->port);
+    Socket *s;
     {
         LocalMutex m;
-        params->sockets->push_back( new Socket(s) );
+        s = new Socket( params->socket->acceptConnection() );
     }
+    return s;
+}
 
-    return NULL;
+void *Mutex::connector(void *p)
+{
+    connectorparams *params = (connectorparams*)p;
+    return new Socket(params->host, params->port);
 }
 
 void Mutex::initialize(vector<string> &hosts, uint16_t port)
 {
-    vector<pthread_t*> threadids;
+    vector<pthread_t*> lthreadids;
+    vector<pthread_t*> cthreadids;
     vector<connectorparams*> cparams;
-    threadids.push_back(new pthread_t);
-
-    listenerparams lparam;
-    lparam.numhosts = hosts.size();
-    lparam.serversocket = &serversocket_;
-    lparam.sockets = &insockets_;
-    pthread_create(threadids.back(), 0, listener, &lparam);
+    listenerparams p;
+    p.socket = &serversocket_;
 
     for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
-        threadids.push_back(new pthread_t);
+        lthreadids.push_back(new pthread_t);
+        pthread_create( lthreadids.back(), 0, listener, &p );
+    }
+
+    for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
+    {
+        cthreadids.push_back(new pthread_t);
         cparams.push_back(new connectorparams);
         cparams.back()->host = (*it);
         cparams.back()->port = port;
-        cparams.back()->sockets = &outsockets_;
 
-        pthread_create( threadids.back(), 0, connector, cparams.back() );
+        pthread_create( cthreadids.back(), 0, connector, cparams.back() );
     }
 
-    for(vector<pthread_t*>::iterator it = threadids.begin(); it != threadids.end(); ++it)
+    for(vector<pthread_t*>::iterator it = lthreadids.begin(); it != lthreadids.end(); ++it)
     {
-        pthread_join( *(*it), NULL );
+        void *s;
+        pthread_join( *(*it), &s );
+        insockets_.push_back((Socket*)s);
+    }
+
+    for(vector<pthread_t*>::iterator it = cthreadids.begin(); it != cthreadids.end(); ++it)
+    {
+        void *s;
+        pthread_join( *(*it), &s );
+        outsockets_.push_back((Socket*)s);
     }
 
     if( outsockets_.size() == insockets_.size() && insockets_.size() == hosts.size() )
@@ -77,3 +78,15 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
         ready_ = true;
     }
 }
+
+void requestCS()
+{
+
+}
+
+void releaseCS()
+{
+
+}
+
+#endif /*FAKEMUTEX*/

@@ -10,18 +10,17 @@
 
 #include "Socket.h"
 
+#ifndef FAKEMUTEX
+
 typedef struct
 {
-    size_t                  numhosts;
-    ListenSocket           *serversocket;
-    std::vector<Socket*>    *sockets;
+    ListenSocket *socket;
 } listenerparams;
 
 typedef struct
 {
     std::string host;
     uint16_t    port;
-    std::vector<Socket*> *sockets;
 } connectorparams;
 
 class Mutex
@@ -31,11 +30,16 @@ class Mutex
     std::vector<Socket*> insockets_;
 
     bool ready_;
+    int sequenceno_;
+
+    static void *listener(void *);
+    static void *connector(void *);
 
     void initialize(std::vector<std::string> &hosts, uint16_t port);
 
 public:
-    Mutex(std::vector<std::string> &hosts, uint16_t port) : serversocket_(ListenSocket(port)) 
+    Mutex(std::vector<std::string> &hosts, uint16_t port) : 
+        serversocket_(ListenSocket(port)), ready_(false), sequenceno_(0)
     { 
         initialize(hosts, port); 
         if(!ready_) throw std::exception(); 
@@ -44,15 +48,21 @@ public:
     void requestCS();
     void releaseCS();
 
+    friend class Receiver;
 };
+
+#else /*FAKEMUTEX*/
 
 // This is a fake mutex locker, that just immediately returns.
 // It will be used to show that there is contention among the processes.
-class FakeMutex
+class Mutex
 {
 public:
+    Mutex(std::vector<std::string> &hosts, uint16_t port) {}
     void requestCS() { return; }
     void releaseCS() { return; }
 };
+
+#endif /*FAKEMUTEX*/
 
 #endif /*MUTEX_H*/

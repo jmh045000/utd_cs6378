@@ -7,12 +7,16 @@ HIDE := @
 
 OBJS = hw3.o Message.o Mutex.o Socket.o
 
-all: hw3
+all: dmutex
 
-hw3: $(OBJS)
+dmutex: $(OBJS)
 	@echo LD $@
 	$(HIDE) $(LD) $(LDFLAGS) $(OBJS) -o $@
 	cp $@ ~
+
+fakedmutex: clean
+	@echo BUILDING WITH A FAKE MUTEX
+	$(MAKE) CFLAGS="$(CFLAGS) -DFAKEMUTEX" all
 
 .PHONY: debug clean dist
 debug:
