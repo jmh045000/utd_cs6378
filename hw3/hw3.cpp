@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -71,5 +72,19 @@ int main(int argc, char *argv[])
         cout << "woops" << endl;
         return -1;
     }
+
+    for(int i = 0; i < 10000; i++)
+    {
+        //Enter critical section
+        {
+            fstream file("dmutextest");
+            int number;
+            file >> number;
+            number++;
+            file << number;
+            file.close();
+        }
+    }
+
     return 0;
 }
