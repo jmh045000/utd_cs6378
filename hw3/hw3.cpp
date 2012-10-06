@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    for(int i = 0; i < 10000; i++)
+    for(int i = 0; i < 100; i++)
     {
         //Enter critical section
         {
@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
             int number;
             file >> number;
             number++;
+            cout << number;
             file << number;
             file.close();
         }
