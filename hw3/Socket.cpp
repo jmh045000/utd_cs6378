@@ -68,10 +68,13 @@ Socket::Socket(struct sockaddr *saddr, uint32_t retries) : connected(false), soc
 
 Socket::~Socket()
 {
+    cerr << "~Socket" << endl;
+    /*
     if(connected) {
         close(sockFD);
         sockFD=-1;
     }
+    */
 }
 
 //open the socket

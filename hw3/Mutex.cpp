@@ -105,6 +105,17 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
     }
     cparams.clear();
 
+    vector<listenerparams*> lparams;
+    for(vector<Socket*>::iterator it = insockets_.begin(); it != insockets_.end(); ++it)
+    {
+        lthreadids.push_back(new pthread_t);
+        lparams.push_back(new listenerparams);
+        lparams.back()->socket = *it;
+        lparams.back()->mutex = this;
+
+        pthread_create(lthreadids.back(), 0, listener, lparams.back());
+    }
+
     for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
     {
         (*it)->write( Message(HELLO, processid_) );
@@ -114,6 +125,9 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
     {
         ready_ = true;
     }
+
+
+    sleep(5);
 }
 
 void requestCS()

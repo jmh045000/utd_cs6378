@@ -24,8 +24,8 @@ debug:
 	$(MAKE) CFLAGS="$(CFLAGS) -DDEBUG" all
 
 clean:
-	rm -f hw2 *.o gmp-5.0.5.tar.bz2
-	rm -rf .depend lib include share gmp-5.0.5
+	rm -f dmutex *.o
+	rm -rf .depend 
 
 dist:
 	$(MAKE) clean
