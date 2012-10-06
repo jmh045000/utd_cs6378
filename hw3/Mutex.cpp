@@ -1,5 +1,8 @@
 
 #ifndef FAKEMUTEX
+#include <iostream>
+using std::cout;
+using std::endl;
 
 #include <string>
 #include <vector>
@@ -64,6 +67,7 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
         void *s;
         pthread_join( *(*it), &s );
         insockets_.push_back((Socket*)s);
+        cout << *(insockets_.back()) << endl;
     }
 
     for(vector<pthread_t*>::iterator it = cthreadids.begin(); it != cthreadids.end(); ++it)
@@ -71,6 +75,7 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
         void *s;
         pthread_join( *(*it), &s );
         outsockets_.push_back((Socket*)s);
+        cout << *(outsockets_.back()) << endl;
     }
 
     if( outsockets_.size() == insockets_.size() && insockets_.size() == hosts.size() )
