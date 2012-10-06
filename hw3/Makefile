@@ -5,7 +5,7 @@ CFLAGS := -O2 -Iinclude/
 LDFLAGS := -lpthread
 HIDE := @
 
-OBJS = hw3.o Message.o Socket.o
+OBJS = hw3.o Message.o Mutex.o Socket.o
 
 all: hw3
 

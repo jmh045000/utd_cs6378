@@ -4,9 +4,11 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 using namespace std;
 
 #include "Message.h"
+#include "Mutex.h"
 #include "Socket.h"
 
 typedef struct
@@ -20,6 +22,7 @@ typedef struct
     uint16_t    port;
 } senderparams_t;
 
+/*
 void *listener(void *p)
 {
     listenerparams_t params = *( (listenerparams_t*)p );
@@ -41,29 +44,19 @@ void *sender(void *p)
     s.write(m);
     cout << s << endl;
 }
+*/
 
 int main(int argc, char *argv[])
 {
-    listenerparams_t lparams;
-    lparams.port = 14000;
+    vector<string> hosts;
+    for(int i = 1; i < argc; i++)
+        hosts.push_back(argv[i]);
 
-    senderparams_t sparams;
-    sparams.port = 14000;
-
-    if(argc > 1)
+    try
     {
-        sparams.hostname = "net02";
+        Mutex m(hosts, 14000);
+    } catch(...) {
+        cout << "woops" << endl;
     }
-    else
-    {
-        sparams.hostname = "net01";
-    }
-
-    pthread_t lid, sid;
-
-    pthread_create(&lid, 0, listener, &lparams);
-    pthread_create(&sid, 0, sender, &sparams);
-
-    sleep(4);
     return 0;
 }

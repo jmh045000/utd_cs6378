@@ -19,7 +19,7 @@ protected:
     
     //Functions:
     void createFD(void);
-    void connectFD(struct sockaddr * psaddr, uint32_t retries=4);   //default to retry 4 times
+    void connectFD(struct sockaddr * psaddr, uint32_t retries=50);   //default to retry 50 times
     int output();
     int input();
 
@@ -28,7 +28,7 @@ public:
     Socket(const Socket &copy);
     Socket(std::string host, uint16_t port);
     Socket(int sockFD) : connected(true), sockFD(sockFD) {}
-    Socket(struct sockaddr * psaddr, uint32_t retries=4);           //default to retry 4 times
+    Socket(struct sockaddr * psaddr, uint32_t retries=50);           //default to retry 50 times
     ~Socket();
     bool isConnected() { return connected; }
 
