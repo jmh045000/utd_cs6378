@@ -7,6 +7,8 @@
 #include <vector>
 using namespace std;
 
+#include <boost/lexical_cast.hpp>
+
 #include "Message.h"
 #include "Mutex.h"
 #include "Socket.h"
@@ -48,15 +50,26 @@ void *sender(void *p)
 
 int main(int argc, char *argv[])
 {
+    if(argc < 3)
+    {
+        cerr << "Wrong usage:" << endl
+            << argv[0] << " <processid> <othernode1> [ <othernode2> ... ]" << endl;
+        return -1;
+    }
+
+    int processid;
+    processid = boost::lexical_cast<int>(argv[1]);
+
     vector<string> hosts;
-    for(int i = 1; i < argc; i++)
+    for(int i = 2; i < argc; i++)
         hosts.push_back(argv[i]);
 
     try
     {
-        Mutex m(hosts, 14000);
+        Mutex m(processid, hosts, 14000);
     } catch(...) {
         cout << "woops" << endl;
+        return -1;
     }
     return 0;
 }

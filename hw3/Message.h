@@ -8,15 +8,16 @@
 
 static const int REQ=0;
 static const int REPLY=1;
+static const int HELLO=2;
 
 class Message
 {
+    int type_;
     int processid_;
     int seqno_;
-    int type_;
 
 public:
-    Message(int processid, int seqno, int type) : processid_(processid), seqno_(seqno), type_(type) {}
+    Message(int type, int processid, int seqno = 0) : processid_(processid), seqno_(seqno), type_(type) {}
     Message(std::string s)
     {
         *this << s;
@@ -29,7 +30,8 @@ public:
         std::stringstream ss(s);
         ss >> type_;
         ss >> processid_;
-        ss >> seqno_;
+        if(type_ != HELLO)
+            ss >> seqno_;
     }
 
     operator const std::string()

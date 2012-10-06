@@ -12,34 +12,44 @@
 
 #ifndef FAKEMUTEX
 
+class Mutex;
+
 typedef struct
 {
     ListenSocket *socket;
-} listenerparams;
+} inparams;
 
 typedef struct
 {
     std::string host;
     uint16_t    port;
-} connectorparams;
+} outparams;
+
+typedef struct
+{
+    Socket *socket;
+    Mutex *mutex;
+} listenerparams;
 
 class Mutex
 {
-    ListenSocket        serversocket_;    
-    std::vector<Socket*> outsockets_;
-    std::vector<Socket*> insockets_;
+    ListenSocket            serversocket_;    
+    std::vector<Socket*>    outsockets_;
+    std::vector<Socket*>    insockets_;
 
-    bool ready_;
-    int sequenceno_;
+    int     processid_;
+    int     sequenceno_;
+    bool    ready_;
 
+    static void *inconnector(void *);
+    static void *outconnector(void *);
     static void *listener(void *);
-    static void *connector(void *);
 
     void initialize(std::vector<std::string> &hosts, uint16_t port);
 
 public:
-    Mutex(std::vector<std::string> &hosts, uint16_t port) : 
-        serversocket_(ListenSocket(port)), ready_(false), sequenceno_(0)
+    Mutex(int processid, std::vector<std::string> &hosts, uint16_t port) : 
+        serversocket_(ListenSocket(port)), processid_(processid), sequenceno_(0), ready_(false)
     { 
         initialize(hosts, port); 
         if(!ready_) throw std::exception(); 
