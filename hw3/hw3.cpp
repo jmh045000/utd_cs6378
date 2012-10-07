@@ -82,12 +82,13 @@ int main(int argc, char *argv[])
         //Enter critical section
         m.requestCS();
         {
-            ofstream out("dmutextest", ios_base::app);
             for(vector<string>::iterator it = sentence.begin(); it != sentence.end(); ++it)
             {
+                ofstream out("dmutextest", ios_base::app);
                 out << *it << " " << flush;
-                sleep(1);
+                out.close();
             }
+            ofstream out("dmutextest", ios_base::app);
             out << endl << flush;
             out.close();
 
