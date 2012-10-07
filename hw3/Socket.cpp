@@ -69,12 +69,14 @@ Socket::Socket(struct sockaddr *saddr, uint32_t retries) : connected(false), soc
 Socket::~Socket()
 {
     cerr << "~Socket" << endl;
-    /*
+}
+
+void Socket::closeSock()
+{
     if(connected) {
-        close(sockFD);
+        ::close(sockFD);
         sockFD=-1;
     }
-    */
 }
 
 //open the socket
@@ -182,6 +184,10 @@ int Socket::input()
         sockFD=-1;
         cerr << __LINE__ << endl; throw exception();
     }
+
+#ifdef SOCKET_DEBUG
+    cerr << "Received: " << buffer << endl;
+#endif
 
     return retVal;
 }

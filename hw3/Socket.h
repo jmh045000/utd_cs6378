@@ -32,8 +32,10 @@ public:
     ~Socket();
     bool isConnected() { return connected; }
 
-    void write(std::string data) { myBuf << data; output(); }
+    void write(std::string data) { myBuf << data; output(); myBuf.str(""); }
     std::string read() {input(); std::string str = myBuf.str(); myBuf.str(""); return str;}
+
+    void closeSock();
 
     //print if socket is connected
     friend std::ostream & operator<< (std::ostream &ostr, Socket s)

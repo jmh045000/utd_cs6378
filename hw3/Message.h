@@ -9,6 +9,7 @@
 static const int REQ=0;
 static const int REPLY=1;
 static const int HELLO=2;
+static const int DONE=3;
 
 class Message
 {
@@ -22,6 +23,10 @@ public:
     {
         *this << s;
     }
+
+    const int type()        { return type_; }
+    const int processid()   { return processid_; }
+    const int seqno()       { return seqno_; }
     
     friend std::ostream& operator<< (std::ostream &out, Message &m);
 

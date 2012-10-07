@@ -65,27 +65,37 @@ int main(int argc, char *argv[])
     for(int i = 2; i < argc; i++)
         hosts.push_back(argv[i]);
 
-    try
-    {
-        Mutex m(processid, hosts, 14000);
-    } catch(...) {
-        cout << "woops" << endl;
-        return -1;
-    }
+    Mutex m(processid, hosts, 14000);
+    vector<string> sentence;
+    sentence.push_back("The");
+    sentence.push_back("quick");
+    sentence.push_back("brown");
+    sentence.push_back("fox");
+    sentence.push_back("jumped");
+    sentence.push_back("over");
+    sentence.push_back("the");
+    sentence.push_back("lazy");
+    sentence.push_back("dog");
 
-    for(int i = 0; i < 100; i++)
+    for(int i = 0; i < 10; i++)
     {
         //Enter critical section
+        m.requestCS();
         {
-            fstream file("dmutextest");
-            int number;
-            file >> number;
-            number++;
-            cout << number;
-            file << number;
-            file.close();
+            ofstream out("dmutextest", ios_base::app);
+            for(vector<string>::iterator it = sentence.begin(); it != sentence.end(); ++it)
+            {
+                out << *it << " " << flush;
+                sleep(1);
+            }
+            out << endl << flush;
+            out.close();
+
         }
+        m.releaseCS();
     }
+
+    m.finish();
 
     return 0;
 }

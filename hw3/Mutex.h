@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include <list>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -36,10 +38,18 @@ class Mutex
     ListenSocket            serversocket_;    
     std::vector<Socket*>    outsockets_;
     std::vector<Socket*>    insockets_;
+    std::map<int, Socket*>  idtosockets_;
 
     int     processid_;
     int     sequenceno_;
     bool    ready_;
+
+    size_t              numhosts_;
+    volatile bool       requestingcs_;
+    volatile int        highestsequence_;
+    volatile size_t     outstandingreplies_;
+    std::list<Socket*>  deferred_;
+    std::list<Socket*>  done_;
 
     static void *inconnector(void *);
     static void *outconnector(void *);
@@ -49,7 +59,8 @@ class Mutex
 
 public:
     Mutex(int processid, std::vector<std::string> &hosts, uint16_t port) : 
-        serversocket_(ListenSocket(port)), processid_(processid), sequenceno_(0), ready_(false)
+        serversocket_(ListenSocket(port)), processid_(processid), sequenceno_(0), ready_(false),
+        numhosts_(hosts.size()), requestingcs_(false), highestsequence_(0), outstandingreplies_(false)
     { 
         initialize(hosts, port); 
         if(!ready_) throw std::exception(); 
@@ -57,6 +68,8 @@ public:
 
     void requestCS();
     void releaseCS();
+
+    void finish();
 
     friend class Receiver;
 };
@@ -68,9 +81,10 @@ public:
 class Mutex
 {
 public:
-    Mutex(std::vector<std::string> &hosts, uint16_t port) {}
-    void requestCS() { return; }
-    void releaseCS() { return; }
+    Mutex(int processid, std::vector<std::string> &hosts, uint16_t port) {}
+    void requestCS()    { return; }
+    void releaseCS()    { return; }
+    void finish()       { return; }
 };
 
 #endif /*FAKEMUTEX*/
