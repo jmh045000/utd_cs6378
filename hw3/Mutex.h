@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "Message.h"
 #include "Socket.h"
 
 #ifndef FAKEMUTEX
@@ -29,16 +30,17 @@ typedef struct
 
 typedef struct
 {
-    Socket *socket;
     Mutex *mutex;
 } listenerparams;
 
 class Mutex
 {
+    typedef std::pair<Socket*, Message> DeferredMessage;
+
     ListenSocket            serversocket_;    
-    std::vector<Socket*>    outsockets_;
-    std::vector<Socket*>    insockets_;
-    std::map<int, Socket*>  idtosockets_;
+    SocketArray     outsockets_;
+    SocketArray     insockets_;
+    std::map<int, Socket*>   idtosockets_;
 
     int     processid_;
     int     sequenceno_;
@@ -48,8 +50,12 @@ class Mutex
     volatile bool       requestingcs_;
     volatile int        highestsequence_;
     volatile size_t     outstandingreplies_;
-    std::list<Socket*>  deferred_;
-    std::list<Socket*>  done_;
+
+    std::list<DeferredMessage>  deferred_;
+    std::list<Socket*>          done_;
+
+    pthread_t                   listenerid_;
+    listenerparams              listenerparams_;
 
     static void *inconnector(void *);
     static void *outconnector(void *);
@@ -65,13 +71,12 @@ public:
         initialize(hosts, port); 
         if(!ready_) throw std::exception(); 
     }
+    ~Mutex();
 
     void requestCS();
     void releaseCS();
 
     void finish();
-
-    friend class Receiver;
 };
 
 #else /*FAKEMUTEX*/
