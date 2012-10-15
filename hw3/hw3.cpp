@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     sentence.push_back("lazy");
     sentence.push_back("dog");
 
-    for(int i = 0; i < 100; i++)
+    for(int i = 0; i < 10; i++)
     {
         //Enter critical section
         m.requestCS();

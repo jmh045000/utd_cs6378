@@ -26,15 +26,11 @@ extern "C"
 #   include <errno.h>
 #   include <string.h>
 #   include <stdio.h>
-#   include <sys/select.h>
-#   include <time.h>
 }
 
 #include "Socket.h"
 
-#ifdef DEBUG
 #define SOCKET_DEBUG
-#endif
 
 //copy constructor
 Socket::Socket(const Socket &copy)
@@ -65,17 +61,20 @@ Socket::Socket(string host, uint16_t port) :
     }
 }
 
+//constructor with struct sockaddr
+Socket::Socket(struct sockaddr *saddr, uint32_t retries) : connected(false), sockFD(-1) {
+    connectFD(saddr, retries);
+}
+
 Socket::~Socket()
 {
-#ifdef SOCKET_DEBUG
-    cerr << "~Socket: " << *this << endl;
-#endif
+    cerr << "~Socket" << endl;
 }
 
 void Socket::closeSock()
 {
     if(connected) {
-        close(sockFD);
+        ::close(sockFD);
         sockFD=-1;
     }
 }
@@ -109,9 +108,14 @@ void Socket::connectFD(struct sockaddr * saddr, uint32_t retries) //default to r
     //retry <retries> times...
     for(uint32_t i=0; i <= retries; i++) {
         if( connect( sockFD, saddr, sizeof(sockaddr)) < 0) {
-#ifdef SOCKET_DEBUG
+/*
+            sockaddr_in *sin = (sockaddr_in *) saddr;
+            printf("%d %x %s\n", ntohs( sin -> sin_port),
+                    sin->sin_family,
+                    inet_ntoa(sin->sin_addr)
+                    );
+*/
             perror("connect()");
-#endif
         }
         else {
             connected = true;
@@ -135,17 +139,18 @@ int Socket::output()
     cerr << "Sending: '" << myBuf.str() << "'" << endl;
 #endif
     int retVal = send(sockFD, myBuf.str().c_str(), length , 0);
-#ifdef SOCKET_DEBUG
-    cerr << "Sent " << retVal << " bytes" << endl;
-#endif
 
-    if (retVal < 0) {
+    if(retVal == length) {
+        myBuf.ignore();
+        myBuf.seekg(0, std::ios::beg);
+    }
+    else if (retVal < 0) {
         std::stringstream ss;
         ss << "error sending: " << errno;
         perror("send()");
         cerr << __LINE__ << endl; throw exception();
     }
-    else if (retVal != length) {
+    else {
         cerr << "Odd send...  expected: " << length  << " sent: " << retVal << endl;
     }
 
@@ -157,46 +162,27 @@ int Socket::input()
 {
     char buffer[4096];
 
-
-#ifdef SOCKET_DEBUG
-    cout << "IN input()" << endl;
-#endif
     if (!connected)
     {
-        return 0;
+        cerr << __FILE__"," << __LINE__ << endl;
+        cerr << __LINE__ << endl; throw exception();
     }
 
-    int retVal;
-
-RECVAGAIN:
-#ifdef SOCKET_DEBUG
-    cout << "calling recv()" << endl;
-#endif
-    retVal = recv(sockFD, buffer, 4096, 0);
-#ifdef SOCKET_DEBUG
-    cout << "done with recv()" << endl;
-#endif
+    int retVal = recv(sockFD, buffer, 4096, 0);
 
     if(retVal > 0) {
-#ifdef SOCKET_DEBUG
-        cout << "Adding received to myBuf" << endl;
-#endif
         myBuf.str(buffer);
     }
     else if(retVal < 0)
     {
-        if(errno == EAGAIN || errno == EWOULDBLOCK)
-        {
-            cout << "input() TIMEDOUT" << endl;
-            goto RECVAGAIN;
-        }
         cout << strerror(errno) << endl;
         cerr << errno << ":" << __LINE__ << endl; throw exception();
     }
-    else {
+    if (retVal == 0) {
         connected=false;
         close(sockFD);
         sockFD=-1;
+        cerr << __LINE__ << endl; throw exception();
     }
 
 #ifdef SOCKET_DEBUG
@@ -204,77 +190,6 @@ RECVAGAIN:
 #endif
 
     return retVal;
-}
-
-SocketArray::~SocketArray()
-{
-    for(SocketVector::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
-        it->closeSock();
-    sockets_.clear();
-}
-
-SocketReadData SocketArray::read()
-{
-    fd_set          fds;
-    char            buffer[4096];
-    int             max = 0;
-    SocketReadData  ret(NULL, "");
-
-    FD_ZERO(&fds);
-    for(SocketVector::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
-    {
-        if(it->sockFD > max) max = it->sockFD;
-        FD_SET(it->sockFD, &fds);
-#ifdef SOCKET_DEBUG
-        cerr << "Adding " << *it << " to fdset" << endl;
-#endif
-    }
-
-    int rc = select(max+1, &fds, NULL, NULL, 0);
-    if (rc < 0)
-    {
-#ifdef SOCKET_DEBUG
-        perror(" select()");
-#endif
-        return SocketReadData(NULL, "");
-    }
-
-    for(int i = 0; i < max; i++)
-    {
-        if (FD_ISSET(i, &fds))
-        {
-            for(SocketVector::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
-            {
-                if(it->sockFD == i) 
-                {
-                    ret.first = &(*it);
-                    ret.second = it->read();
-                    break;
-                }
-            }
-        }
-        if(ret.first != NULL) return ret;
-    }
-}
-
-void SocketArray::write(string msg)
-{
-    for(SocketVector::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
-    {
-        it->write(msg);
-    }
-}
-
-void SocketArray::removeSocket(Socket& s)
-{
-    for(SocketVector::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
-    {
-        if(*it == s)
-        {
-            it->closeSock();
-            sockets_.erase(it);
-        }
-    }
 }
 
 //open a listen socket on the specified port
@@ -309,7 +224,7 @@ ListenSocket::ListenSocket(uint16_t port)
 
 ListenSocket::~ListenSocket()
 {
-    //cout << "~ListenSocket()" << endl;
+    cout << "~ListenSocket()" << endl;
     if(connected)
     {
         close(sockFD);
