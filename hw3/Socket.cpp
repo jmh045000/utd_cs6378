@@ -68,7 +68,7 @@ Socket::Socket(struct sockaddr *saddr, uint32_t retries) : connected(false), soc
 
 Socket::~Socket()
 {
-    cerr << "~Socket" << endl;
+    cerr << "~Socket: " << sockFD << endl;
 }
 
 void Socket::closeSock()
@@ -136,9 +136,11 @@ int Socket::output()
     //don't forget to add 1 for \0
     int length = myBuf.str().length()+1;
 #ifdef SOCKET_DEBUG
-    cerr << "Sending: '" << myBuf.str() << "'" << endl;
+    cerr << "Sending: '" << myBuf.str() << "' on socket (" << sockFD << ")" << endl;
 #endif
-    int retVal = send(sockFD, myBuf.str().c_str(), length , 0);
+    string str = myBuf.str();
+    const char *buf = str.c_str();
+    int retVal = send(sockFD, buf, str.length()+1 , 0);
 
     if(retVal == length) {
         myBuf.ignore();
@@ -161,6 +163,7 @@ int Socket::output()
 int Socket::input()
 {
     char buffer[4096];
+    memset(buffer, 0, 4096);
 
     if (!connected)
     {
@@ -168,13 +171,26 @@ int Socket::input()
         cerr << __LINE__ << endl; throw exception();
     }
 
-    int retVal = recv(sockFD, buffer, 4096, 0);
+
+        struct timeval tv;
+        memset(&tv, 0, sizeof(struct timeval));
+        tv.tv_sec = 5;
+
+        setsockopt(sockFD, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+
+    int retVal;
+RETRY:
+        cerr << "Calling recv on socket (" << sockFD << ")" << endl;
+        retVal = recv(sockFD, buffer, 4096, 0);
+        cerr << "recv on socket (" << sockFD << ") returned: " << buffer << endl;
 
     if(retVal > 0) {
         myBuf.str(buffer);
     }
     else if(retVal < 0)
     {
+        if(errno == EAGAIN || errno == EWOULDBLOCK)
+            goto RETRY;
         cout << strerror(errno) << endl;
         cerr << errno << ":" << __LINE__ << endl; throw exception();
     }

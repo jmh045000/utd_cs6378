@@ -12,6 +12,12 @@
 
 #include "Socket.h"
 
+typedef struct
+{
+    std::string hostname;
+    int         port;
+} host;
+
 #ifndef FAKEMUTEX
 
 class Mutex;
@@ -55,10 +61,10 @@ class Mutex
     static void *outconnector(void *);
     static void *listener(void *);
 
-    void initialize(std::vector<std::string> &hosts, uint16_t port);
+    void initialize(std::vector<host> &hosts, uint16_t port);
 
 public:
-    Mutex(int processid, std::vector<std::string> &hosts, uint16_t port) : 
+    Mutex(int processid, std::vector<host> &hosts, uint16_t port) : 
         serversocket_(ListenSocket(port)), processid_(processid), sequenceno_(0), ready_(false),
         numhosts_(hosts.size()), requestingcs_(false), highestsequence_(0), outstandingreplies_(false)
     { 
@@ -81,7 +87,7 @@ public:
 class Mutex
 {
 public:
-    Mutex(int processid, std::vector<std::string> &hosts, uint16_t port) {}
+    Mutex(int processid, std::vector<host> &hosts, uint16_t port) {}
     void requestCS()    { return; }
     void releaseCS()    { return; }
     void finish()       { return; }

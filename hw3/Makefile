@@ -13,7 +13,6 @@ dmutex: $(OBJS)
 	@echo LD $@
 	$(HIDE) $(LD) $(LDFLAGS) $(OBJS) -o $@
 	cp $@ ~
-	scp $@ jmh045000@cs1.utdallas.edu:
 
 fakedmutex: clean
 	@echo BUILDING WITH A FAKE MUTEX

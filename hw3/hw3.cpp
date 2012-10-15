@@ -1,6 +1,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <time.h>
 
 #include <fstream>
 #include <iostream>
@@ -25,47 +26,31 @@ typedef struct
     uint16_t    port;
 } senderparams_t;
 
-/*
-void *listener(void *p)
-{
-    listenerparams_t params = *( (listenerparams_t*)p );
-
-    ListenSocket ls(params.port);
-    cout << "Accepting a connection!" << endl;
-    Socket s(ls.acceptConnection());
-    cout << "reading..." << endl;
-    Message m(s.read());
-    cout << m << endl;
-}
-
-void *sender(void *p)
-{
-    senderparams_t params = *( (senderparams_t*)p );
-
-    Socket s(params.hostname, params.port);
-    Message m(REQ, 0, 1);
-    s.write(m);
-    cout << s << endl;
-}
-*/
-
 int main(int argc, char *argv[])
 {
-    if(argc < 3)
+    if(argc < 2)
     {
         cerr << "Wrong usage:" << endl
-            << argv[0] << " <processid> <othernode1> [ <othernode2> ... ]" << endl;
+            << argv[0] << " <configuration file>" << endl;
         return -1;
     }
 
-    int processid;
-    processid = boost::lexical_cast<int>(argv[1]);
+    int processid = -1, port = 14000;
+    vector<host> hosts;
 
-    vector<string> hosts;
-    for(int i = 2; i < argc; i++)
-        hosts.push_back(argv[i]);
+    ifstream infile(argv[1]);
 
-    Mutex m(processid, hosts, 14000);
+    infile >> processid;
+    infile >> port;
+    while(infile)
+    {
+        host h;
+        infile >> h.hostname >> h.port;
+        if(h.hostname != "")
+            hosts.push_back(h);
+    }
+
+    Mutex m(processid, hosts, port);
     vector<string> sentence;
     sentence.push_back("The");
     sentence.push_back("quick");
@@ -76,6 +61,11 @@ int main(int argc, char *argv[])
     sentence.push_back("the");
     sentence.push_back("lazy");
     sentence.push_back("dog");
+
+    cout << "Starting at next 5 second boundary" << endl;
+    time_t starttime = ((time(0)/5)*5)+5;
+
+    while(time(0) < starttime);
 
     for(int i = 0; i < 10; i++)
     {
@@ -91,7 +81,6 @@ int main(int argc, char *argv[])
             ofstream out("dmutextest", ios_base::app);
             out << endl << flush;
             out.close();
-
         }
         m.releaseCS();
     }

@@ -23,13 +23,14 @@ T max(T left, T right)
     else                return right;
 }
 
-pthread_mutex_t mutex_ = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_;
 
 class LocalMutex
 {
+    pthread_mutex_t m_;
 public:
-    LocalMutex() { pthread_mutex_lock(&mutex_); }
-    ~LocalMutex() { pthread_mutex_unlock(&mutex_); }
+    LocalMutex(pthread_mutex_t &m) : m_(m) { pthread_mutex_lock(&m_); }
+    ~LocalMutex() { pthread_mutex_unlock(&m_); }
 };
 
 void *Mutex::inconnector(void *p)
@@ -37,7 +38,7 @@ void *Mutex::inconnector(void *p)
     inparams *params = (inparams*)p;
     Socket *s;
     {
-        LocalMutex m;
+        LocalMutex m(mutex_);
         s = new Socket( params->socket->acceptConnection() );
     }
     return s;
@@ -57,10 +58,12 @@ void *Mutex::listener(void *p)
 
     while(true)
     {
+        //cerr << pthread_self() << ": Calling read()" << endl;
         Message m(socket->read());
+        //cerr << pthread_self() << ": read Message: " << m << endl;
 
         {
-            LocalMutex _;
+            LocalMutex _(mutex_);
             switch(m.type())
             {
             case HELLO:
@@ -68,27 +71,28 @@ void *Mutex::listener(void *p)
                 break;
             case REQ:
                 {
-                    cout << "RECEIVED REQ" << endl;
+                    //cerr << pthread_self() << ": " << "RECEIVED REQ" << endl;
                     mutex->highestsequence_ = max(mutex->highestsequence_, m.seqno());
                     bool defer = mutex->requestingcs_ && ( (m.seqno() > mutex->sequenceno_) || (m.seqno() == mutex->sequenceno_ && m.processid() > mutex->processid_ ) );
                     if(defer)
                     {
-                        cout << "DEFER REPLY" << endl;
+                        cerr << "DEFER REPLY" << endl;
                         mutex->deferred_.push_back(mutex->idtosockets_[m.processid()]);
                     }
                     else
                     {
-                        cout << "SENDING REPLY" << endl;
+                        cerr << "SENDING REPLY" << endl;
                         mutex->idtosockets_[m.processid()]->write( Message(REPLY, mutex->processid_, m.seqno()) );
                     }
                 }
                 break;
             case REPLY:
-                cout << "RECEIVED REPLY" << endl;
+                //cerr << pthread_self() << ": " << "RECEIVED REPLY" << endl;
                 mutex->outstandingreplies_--;
                 break;
             case DONE:
-                cout << "RECEIVED DONE" << endl;
+                //cerr << pthread_self() << ": " << "RECEIVED DONE" << endl;
+                mutex->numhosts_--;
                 mutex->done_.push_back(socket);
                 mutex->done_.push_back(mutex->idtosockets_[m.processid()]);
                 break;
@@ -101,33 +105,30 @@ void *Mutex::listener(void *p)
     return NULL;
 }
 
-void Mutex::initialize(vector<string> &hosts, uint16_t port)
+void Mutex::initialize(vector<host> &hosts, uint16_t port)
 {
+    pthread_mutex_init(&mutex_, NULL);
     vector<pthread_t*> lthreadids;
     vector<pthread_t*> cthreadids;
     vector<outparams*> cparams;
     inparams p;
     p.socket = &serversocket_;
 
-    cout << __LINE__ << endl;
-
-    for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
+    for(vector<host>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
         lthreadids.push_back(new pthread_t);
         pthread_create( lthreadids.back(), 0, inconnector, &p );
     }
-    cout << __LINE__ << endl;
 
-    for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
+    for(vector<host>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
         cthreadids.push_back(new pthread_t);
         cparams.push_back(new outparams);
-        cparams.back()->host = (*it);
-        cparams.back()->port = port;
+        cparams.back()->host = it->hostname;
+        cparams.back()->port = it->port;
 
         pthread_create( cthreadids.back(), 0, outconnector, cparams.back() );
     }
-    cout << __LINE__ << endl;
 
     for(vector<pthread_t*>::iterator it = lthreadids.begin(); it != lthreadids.end(); ++it)
     {
@@ -137,7 +138,6 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
 
         delete *it;
     }
-    cout << __LINE__ << endl;
     lthreadids.clear();
 
     for(vector<pthread_t*>::iterator it = cthreadids.begin(); it != cthreadids.end(); ++it)
@@ -148,7 +148,6 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
 
         delete *it;
     }
-    cout << __LINE__ << endl;
     cthreadids.clear();
 
 
@@ -156,7 +155,6 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
     {
         delete *it;
     }
-    cout << __LINE__ << endl;
     cparams.clear();
 
     vector<listenerparams*> lparams;
@@ -169,7 +167,6 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
 
         pthread_create(lthreadids.back(), 0, listener, lparams.back());
     }
-    cout << __LINE__ << endl;
 
     for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
     {
@@ -177,11 +174,9 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
         Message m((*it)->read());
         idtosockets_[m.processid()] = (*it);
     }
-    cout << __LINE__ << endl;
 
     sleep(1);
 
-    cout << __LINE__ << endl;
     if( outsockets_.size() == insockets_.size() && insockets_.size() == hosts.size() )
     {
         ready_ = true;
@@ -190,8 +185,10 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
 
 void Mutex::requestCS()
 {
+    usleep(100000);
+
     {
-        LocalMutex m;
+        LocalMutex m(mutex_);
         requestingcs_ = true;
         sequenceno_ = highestsequence_ + 1;
         outstandingreplies_ = numhosts_;
@@ -203,10 +200,12 @@ void Mutex::requestCS()
         }
     }
 
+    cout << "Waiting for " << outstandingreplies_ << " replies" << endl;
+
     while(true) 
     {
         {
-            LocalMutex m;
+            LocalMutex m(mutex_);
             if (outstandingreplies_ == 0)
                 break;
         }
@@ -216,7 +215,7 @@ void Mutex::requestCS()
 
 void Mutex::releaseCS()
 {
-    LocalMutex m;
+    LocalMutex m(mutex_);
 
     requestingcs_ = false;
     highestsequence_ = max(highestsequence_, sequenceno_);
