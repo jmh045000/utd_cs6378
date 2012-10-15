@@ -1,28 +1,20 @@
 
 #ifndef FAKEMUTEX
+#include <iostream>
+using std::cout;
+using std::cerr;
+using std::endl;
 
 #include <list>
 #include <string>
 #include <vector>
 
 using std::list;
-using std::pair;
 using std::string;
 using std::vector;
 
 #include "Message.h"
 #include "Mutex.h"
-
-#ifdef DEBUG
-#define MUTEX_DEBUG
-#endif
-
-#ifdef MUTEX_DEBUG
-#include <iostream>
-using std::cout;
-using std::cerr;
-using std::endl;
-#endif
 
 template <typename T>
 T max(T left, T right)
@@ -40,16 +32,15 @@ public:
     ~LocalMutex() { pthread_mutex_unlock(&mutex_); }
 };
 
-Mutex::~Mutex()
-{
-    pthread_join(listenerid_, NULL);
-    serversocket_.closeSock();
-}
-
 void *Mutex::inconnector(void *p)
 {
     inparams *params = (inparams*)p;
-    return new Socket(params->socket->acceptConnection());
+    Socket *s;
+    {
+        LocalMutex m;
+        s = new Socket( params->socket->acceptConnection() );
+    }
+    return s;
 }
 
 void *Mutex::outconnector(void *p)
@@ -61,26 +52,12 @@ void *Mutex::outconnector(void *p)
 void *Mutex::listener(void *p)
 {
     listenerparams *params = (listenerparams*)p;
+    Socket *socket = params->socket;
     Mutex *mutex = params->mutex;
 
     while(true)
     {
-#ifdef MUTEX_DEBUG
-        cout << "Calling read()" << endl;
-#endif
-        SocketReadData data = mutex->insockets_.read();
-        if(data.second == "")
-        {
-            mutex->insockets_.removeSocket(*data.first);
-            return NULL;
-        }
-        Socket *socket = data.first;
-        Message m(data.second);
-
-
-#ifdef MUTEX_DEBUG
-        cout << "Received message of type: " << m.type() << endl;
-#endif
+        Message m(socket->read());
 
         {
             LocalMutex _;
@@ -88,43 +65,35 @@ void *Mutex::listener(void *p)
             {
             case HELLO:
                 socket->write( Message(HELLO, mutex->processid_) );
-#ifdef MUTEX_DEBUG
-                cout << "Received HELLO, sending response to " << m.processid() << endl;
-#endif
                 break;
             case REQ:
                 {
+                    cout << "RECEIVED REQ" << endl;
                     mutex->highestsequence_ = max(mutex->highestsequence_, m.seqno());
                     bool defer = mutex->requestingcs_ && ( (m.seqno() > mutex->sequenceno_) || (m.seqno() == mutex->sequenceno_ && m.processid() > mutex->processid_ ) );
                     if(defer)
                     {
-#ifdef MUTEX_DEBUG
-                        cout << "Deferring the reply to " << m.processid() << endl;
-#endif
-                        mutex->deferred_.push_back(DeferredMessage(mutex->idtosockets_[m.processid()], Message(REPLY, m.processid(), m.seqno()) ) );
+                        cout << "DEFER REPLY" << endl;
+                        mutex->deferred_.push_back(mutex->idtosockets_[m.processid()]);
                     }
                     else
                     {
-#ifdef MUTEX_DEBUG
-                        cout << "Sending the reply to " << m.processid() << endl;
-#endif
-                        mutex->idtosockets_[m.processid()]->write( Message(REPLY, m.processid(), m.seqno()) );
+                        cout << "SENDING REPLY" << endl;
+                        mutex->idtosockets_[m.processid()]->write( Message(REPLY, mutex->processid_, m.seqno()) );
                     }
                 }
                 break;
             case REPLY:
+                cout << "RECEIVED REPLY" << endl;
                 mutex->outstandingreplies_--;
                 break;
             case DONE:
+                cout << "RECEIVED DONE" << endl;
                 mutex->done_.push_back(socket);
                 mutex->done_.push_back(mutex->idtosockets_[m.processid()]);
-                mutex->numhosts_--;
                 break;
             default:
-#ifdef MUTEX_DEBUG
                 cerr << "UNKNOWN MESSAGE TYPE..." << endl;
-#endif
-                break;
             }
         }
     }
@@ -134,18 +103,20 @@ void *Mutex::listener(void *p)
 
 void Mutex::initialize(vector<string> &hosts, uint16_t port)
 {
+    vector<pthread_t*> lthreadids;
     vector<pthread_t*> cthreadids;
-    vector<pthread_t*>      lthreadids;
     vector<outparams*> cparams;
-    vector<listenerparams*> lparams;
     inparams p;
     p.socket = &serversocket_;
+
+    cout << __LINE__ << endl;
 
     for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
         lthreadids.push_back(new pthread_t);
         pthread_create( lthreadids.back(), 0, inconnector, &p );
     }
+    cout << __LINE__ << endl;
 
     for(vector<string>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
@@ -156,25 +127,28 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
 
         pthread_create( cthreadids.back(), 0, outconnector, cparams.back() );
     }
+    cout << __LINE__ << endl;
 
     for(vector<pthread_t*>::iterator it = lthreadids.begin(); it != lthreadids.end(); ++it)
     {
         void *s;
         pthread_join( *(*it), &s );
-        insockets_.addSocket( *((Socket*)s) );
+        insockets_.push_back((Socket*)s);
 
         delete *it;
     }
+    cout << __LINE__ << endl;
     lthreadids.clear();
 
     for(vector<pthread_t*>::iterator it = cthreadids.begin(); it != cthreadids.end(); ++it)
     {
         void *s;
         pthread_join( *(*it), &s );
-        outsockets_.addSocket( *((Socket*)s) );
+        outsockets_.push_back((Socket*)s);
 
         delete *it;
     }
+    cout << __LINE__ << endl;
     cthreadids.clear();
 
 
@@ -182,26 +156,32 @@ void Mutex::initialize(vector<string> &hosts, uint16_t port)
     {
         delete *it;
     }
+    cout << __LINE__ << endl;
     cparams.clear();
 
-    listenerparams_.mutex = this;
-    pthread_create(&listenerid_, 0, listener, &listenerparams_);
+    vector<listenerparams*> lparams;
+    for(vector<Socket*>::iterator it = insockets_.begin(); it != insockets_.end(); ++it)
+    {
+        lthreadids.push_back(new pthread_t);
+        lparams.push_back(new listenerparams);
+        lparams.back()->socket = *it;
+        lparams.back()->mutex = this;
 
-    outsockets_.write( Message(HELLO, processid_) );
+        pthread_create(lthreadids.back(), 0, listener, lparams.back());
+    }
+    cout << __LINE__ << endl;
+
+    for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
+    {
+        (*it)->write( Message(HELLO, processid_) );
+        Message m((*it)->read());
+        idtosockets_[m.processid()] = (*it);
+    }
+    cout << __LINE__ << endl;
 
     sleep(1);
 
-    for(int i = 0; i < numhosts_; i++)
-    {
-        SocketReadData data = outsockets_.read();
-        Message m(data.second);
-        idtosockets_[m.processid()] = data.first;
-#ifdef MUTEX_DEBUG
-        cout << "Processid " << m.processid() << " is on socket " << *data.first << endl;
-#endif
-    }
-
-
+    cout << __LINE__ << endl;
     if( outsockets_.size() == insockets_.size() && insockets_.size() == hosts.size() )
     {
         ready_ = true;
@@ -216,12 +196,12 @@ void Mutex::requestCS()
         sequenceno_ = highestsequence_ + 1;
         outstandingreplies_ = numhosts_;
 
-        outsockets_.write( Message(REQ, processid_, sequenceno_) );
+        cout << "Sending REQs, seqno=" << sequenceno_ << endl;
+        for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
+        {
+            (*it)->write( Message(REQ, processid_, sequenceno_) );
+        }
     }
-
-#ifdef MUTEX_DEBUG
-    cout << "Waiting for all " << outstandingreplies_ << " replies" << endl;
-#endif
 
     while(true) 
     {
@@ -230,10 +210,8 @@ void Mutex::requestCS()
             if (outstandingreplies_ == 0)
                 break;
         }
+        usleep(50);
     }
-#ifdef MUTEX_DEBUG
-    cout << "Granting access to CS" << endl;
-#endif
 }
 
 void Mutex::releaseCS()
@@ -243,22 +221,28 @@ void Mutex::releaseCS()
     requestingcs_ = false;
     highestsequence_ = max(highestsequence_, sequenceno_);
     
-    for(list<DeferredMessage>::iterator it = deferred_.begin(); it != deferred_.end(); it = deferred_.begin())
+    for(list<Socket*>::iterator it = deferred_.begin(); it != deferred_.end(); it = deferred_.begin())
     {
-        it->first->write( it->second );
+        cout << "SENDING DEFERRED REPLY, seqno=" << sequenceno_ << endl;
+        (*it)->write( Message(REPLY, processid_, sequenceno_) );
         deferred_.erase(it);
     }
 }
 
 void Mutex::finish()
 { 
-    outsockets_.write( Message(DONE, processid_) );
+    for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
+    {
+        (*it)->write( Message(DONE, processid_) );
+    }
 
     while( numhosts_ > 0 ) 
     {
+        sleep(1);
         for(list<Socket*>::iterator it = done_.begin(); it != done_.end(); it = done_.begin())
         {
             (*it)->closeSock();
+            delete *it;
             done_.erase(it);
         }
     }
