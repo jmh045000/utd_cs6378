@@ -1,0 +1,18 @@
+#!/bin/bash
+
+killsubs()
+{
+    killall dmutex
+    exit 0
+}
+
+trap killsubs INT
+
+cd ~
+./dmutex dmutexconfig0 2>&1 | tee dmutexlog.0 &
+./dmutex dmutexconfig1 2>&1 | tee dmutexlog.1 &
+./dmutex dmutexconfig2 2>&1 | tee dmutexlog.2 &
+
+wait
+
+exit 0

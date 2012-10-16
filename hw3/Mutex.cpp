@@ -27,10 +27,10 @@ static pthread_mutex_t mutex_;
 
 class LocalMutex
 {
-    pthread_mutex_t m_;
+    pthread_mutex_t *m_;
 public:
-    LocalMutex(pthread_mutex_t &m) : m_(m) { pthread_mutex_lock(&m_); }
-    ~LocalMutex() { pthread_mutex_unlock(&m_); }
+    LocalMutex(pthread_mutex_t *m) : m_(m) { pthread_mutex_lock(m_); }
+    ~LocalMutex() { pthread_mutex_unlock(m_); }
 };
 
 void *Mutex::inconnector(void *p)
@@ -38,7 +38,7 @@ void *Mutex::inconnector(void *p)
     inparams *params = (inparams*)p;
     Socket *s;
     {
-        LocalMutex m(mutex_);
+        LocalMutex m(&mutex_);
         s = new Socket( params->socket->acceptConnection() );
     }
     return s;
@@ -63,7 +63,7 @@ void *Mutex::listener(void *p)
         //cerr << pthread_self() << ": read Message: " << m << endl;
 
         {
-            LocalMutex _(mutex_);
+            LocalMutex _(&mutex_);
             switch(m.type())
             {
             case HELLO:
@@ -188,7 +188,7 @@ void Mutex::requestCS()
     usleep(100000);
 
     {
-        LocalMutex m(mutex_);
+        LocalMutex m(&mutex_);
         requestingcs_ = true;
         sequenceno_ = highestsequence_ + 1;
         outstandingreplies_ = numhosts_;
@@ -205,7 +205,7 @@ void Mutex::requestCS()
     while(true) 
     {
         {
-            LocalMutex m(mutex_);
+            LocalMutex m(&mutex_);
             if (outstandingreplies_ == 0)
                 break;
         }
@@ -215,7 +215,7 @@ void Mutex::requestCS()
 
 void Mutex::releaseCS()
 {
-    LocalMutex m(mutex_);
+    LocalMutex m(&mutex_);
 
     requestingcs_ = false;
     highestsequence_ = max(highestsequence_, sequenceno_);
