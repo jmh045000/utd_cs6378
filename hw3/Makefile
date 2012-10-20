@@ -12,11 +12,14 @@ all: dmutex
 dmutex: $(OBJS)
 	@echo LD $@
 	$(HIDE) $(LD) $(LDFLAGS) $(OBJS) -o $@
-	cp $@ ~
 
-fakedmutex: clean
+realdmutex : clean
+	@echo BUILDING WITH A REAL MUTEX
+	@$(MAKE) all
+
+fakedmutex : clean
 	@echo BUILDING WITH A FAKE MUTEX
-	$(MAKE) CFLAGS="$(CFLAGS) -DFAKEMUTEX" all
+	@$(MAKE) CFLAGS="$(CFLAGS) -DFAKEMUTEX" all
 
 .PHONY: debug clean dist
 debug:
@@ -24,8 +27,9 @@ debug:
 	$(MAKE) CFLAGS="$(CFLAGS) -DDEBUG" all
 
 clean:
-	rm -f dmutex *.o
-	rm -rf .depend 
+	@echo "Cleaning..."
+	@rm -f dmutex *.o
+	@rm -rf .depend 
 
 dist:
 	$(MAKE) clean

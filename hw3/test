@@ -1,18 +1,89 @@
-#!/bin/bash
+#!/usr/bin/env python
 
-killsubs()
-{
-    killall dmutex
-    exit 0
-}
+import os
+import shutil
+import subprocess
+import sys
+import threading
 
-trap killsubs INT
+class Host(object):
+    def __init__(self, id, hostname, port):
+        self.id = id
+        self.hostname = hostname
+        self.port = port
 
-cd ~
-./dmutex dmutexconfig0 2>&1 | tee dmutexlog.0 &
-./dmutex dmutexconfig1 2>&1 | tee dmutexlog.1 &
-./dmutex dmutexconfig2 2>&1 | tee dmutexlog.2 &
+    def __str__(self):
+        return '%s %s' % (self.hostname, self.port)
 
-wait
+def runprog(path, config):
+    proc = subprocess.Popen([path, config], stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+    rc = proc.wait()
+    return rc
 
-exit 0
+def main(argv):
+
+    if not len(argv) > 0:
+        return
+
+    testdir = os.path.join(os.path.expanduser('~'), 'dmutextestdir')
+
+    print 'Removing test file from any previous runs...'
+    for file in [os.path.join(testdir, 'dmutex'), 'dmutextest']:
+        try:
+            os.unlink(file)
+        except OSError, e:
+            pass
+
+    hosts = []
+    for i,arg in enumerate(argv):
+        h = Host(i, arg, 14000+i)
+        hosts.append(h)
+
+    try:
+        os.mkdir(testdir)
+    except OSError, e:
+        shutil.rmtree(testdir)
+        os.mkdir(testdir)
+
+    print 'Copying binary to test directory...'
+    shutil.copy2('dmutex', testdir)
+
+    print 'Creating config files',
+
+    for h in hosts:
+        conffile = open(os.path.join(testdir, 'config%s' % h.id), 'w')
+        confstring = '%s\n%s\n' % (h.id, h.port)
+        for h1 in hosts:
+            if not h is h1:
+                confstring = confstring + str(h1) + '\n'
+        conffile.write(confstring)
+        conffile.close()
+        print '.',
+
+    print
+
+    print 'Starting processes',
+
+    threads = []
+    for h in hosts:
+        t = threading.Thread(target=runprog, args=(os.path.join(testdir, 'dmutex'), os.path.join(testdir, 'config%s' % h.id)))
+        t.start()
+        threads.append(t)
+        print '.',
+
+    print
+
+    print 'Waiting for processes to exit',
+    for t in threads:
+        t.join()
+        print '.',
+    print
+
+    print 'Output from distributed mutex test:'
+
+    print open('dmutextest').read()
+
+
+main(sys.argv[1:])
+        
+    
