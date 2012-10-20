@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 import threading
 
 class Host(object):
@@ -15,8 +16,9 @@ class Host(object):
     def __str__(self):
         return '%s %s' % (self.hostname, self.port)
 
-def runprog(path, config):
-    proc = subprocess.Popen([path, config], stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
+def runprog(host, path, config):
+    print 'host=%s, path=%s, config=%s' % (host, path, config)
+    proc = subprocess.Popen(['ssh', host, 'cd %s ; ./dmutex %s' % (path, config)])
     rc = proc.wait()
     return rc
 
@@ -28,9 +30,9 @@ def main(argv):
     testdir = os.path.join(os.path.expanduser('~'), 'dmutextestdir')
 
     print 'Removing test file from any previous runs...'
-    for file in [os.path.join(testdir, 'dmutex'), 'dmutextest']:
+    for file in ['dmutex', 'dmutextest']:
         try:
-            os.unlink(file)
+            os.unlink(os.path.join(testdir, file))
         except OSError, e:
             pass
 
@@ -62,11 +64,14 @@ def main(argv):
 
     print
 
+    print 'Sleeping for 1 second to let NFS catch up...'
+    time.sleep(1)
+
     print 'Starting processes',
 
     threads = []
     for h in hosts:
-        t = threading.Thread(target=runprog, args=(os.path.join(testdir, 'dmutex'), os.path.join(testdir, 'config%s' % h.id)))
+        t = threading.Thread(target=runprog, args=(h.hostname, testdir, os.path.join(testdir, 'config%s' % h.id)))
         t.start()
         threads.append(t)
         print '.',
@@ -81,7 +86,7 @@ def main(argv):
 
     print 'Output from distributed mutex test:'
 
-    print open('dmutextest').read()
+    print open(os.path.join(testdir, 'dmutextest')).read()
 
 
 main(sys.argv[1:])
