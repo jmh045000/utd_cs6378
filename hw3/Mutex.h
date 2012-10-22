@@ -21,17 +21,7 @@ typedef struct
 #ifndef FAKEMUTEX
 
 class Mutex;
-
-typedef struct
-{
-    ListenSocket *socket;
-} inparams;
-
-typedef struct
-{
-    std::string host;
-    uint16_t    port;
-} outparams;
+typedef std::pair<Socket*, Message> OutgoingMessage;
 
 typedef struct
 {
@@ -39,16 +29,22 @@ typedef struct
     Mutex *mutex;
 } listenerparams;
 
+typedef struct
+{
+    std::vector<OutgoingMessage> *outgoing;
+    Mutex *mutex;
+} senderparams;
+
 class Mutex
 {
-    ListenSocket            serversocket_;    
-    std::vector<Socket*>    outsockets_;
-    std::vector<Socket*>    insockets_;
-    std::map<int, Socket*>  idtosockets_;
+    ListenSocket            serversocket_;
+    std::vector<Socket*>    sockets_;
+    std::vector<OutgoingMessage> outgoing_;
 
     int     processid_;
     int     sequenceno_;
     bool    ready_;
+    pthread_cond_t  cond_;
 
     size_t              numhosts_;
     volatile bool       requestingcs_;
@@ -57,9 +53,8 @@ class Mutex
     std::list<Socket*>  deferred_;
     std::list<Socket*>  done_;
 
-    static void *inconnector(void *);
-    static void *outconnector(void *);
     static void *listener(void *);
+    static void *sender(void *);
 
     void initialize(std::vector<host> &hosts, uint16_t port);
 

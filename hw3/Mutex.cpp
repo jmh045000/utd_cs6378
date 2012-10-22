@@ -1,7 +1,6 @@
 
 #ifndef FAKEMUTEX
 #include <iostream>
-using std::cout;
 using std::cerr;
 using std::endl;
 
@@ -33,23 +32,6 @@ public:
     ~LocalMutex() { pthread_mutex_unlock(m_); }
 };
 
-void *Mutex::inconnector(void *p)
-{
-    inparams *params = (inparams*)p;
-    Socket *s;
-    {
-        LocalMutex m(&mutex_);
-        s = new Socket( params->socket->acceptConnection() );
-    }
-    return s;
-}
-
-void *Mutex::outconnector(void *p)
-{
-    outparams *params = (outparams*)p;
-    return new Socket(params->host, params->port);
-}
-
 void *Mutex::listener(void *p)
 {
     listenerparams *params = (listenerparams*)p;
@@ -58,43 +40,54 @@ void *Mutex::listener(void *p)
 
     while(true)
     {
-        //cerr << pthread_self() << ": Calling read()" << endl;
-        Message m(socket->read());
-        //cerr << pthread_self() << ": read Message: " << m << endl;
+        string str = "";
+
+        try
+        {
+            while(str == "")
+            {
+                {
+                    LocalMutex _(&mutex_);  
+                    //cerr << "Reading from socket..." << endl;
+                    str = socket->read();
+                }
+                usleep(1);
+            }
+        } catch(ClosedException e) {
+            return NULL;
+        }
+
+        Message m(str);
 
         {
             LocalMutex _(&mutex_);
             switch(m.type())
             {
-            case HELLO:
-                socket->write( Message(HELLO, mutex->processid_) );
-                break;
             case REQ:
                 {
-                    //cerr << pthread_self() << ": " << "RECEIVED REQ" << endl;
+                    cerr << pthread_self() << ": " << "RECEIVED REQ" << endl;
                     mutex->highestsequence_ = max(mutex->highestsequence_, m.seqno());
                     bool defer = mutex->requestingcs_ && ( (m.seqno() > mutex->sequenceno_) || (m.seqno() == mutex->sequenceno_ && m.processid() > mutex->processid_ ) );
                     if(defer)
                     {
                         cerr << "DEFER REPLY" << endl;
-                        mutex->deferred_.push_back(mutex->idtosockets_[m.processid()]);
+                        mutex->deferred_.push_back(socket);
                     }
                     else
                     {
                         cerr << "SENDING REPLY" << endl;
-                        mutex->idtosockets_[m.processid()]->write( Message(REPLY, mutex->processid_, m.seqno()) );
+                        mutex->outgoing_.push_back( OutgoingMessage(socket, Message(REPLY, mutex->processid_, m.seqno())) );
+                        pthread_cond_signal(&mutex->cond_);
                     }
                 }
                 break;
             case REPLY:
-                //cerr << pthread_self() << ": " << "RECEIVED REPLY" << endl;
+                cerr << pthread_self() << ": " << "RECEIVED REPLY" << endl;
                 mutex->outstandingreplies_--;
                 break;
             case DONE:
-                //cerr << pthread_self() << ": " << "RECEIVED DONE" << endl;
-                mutex->numhosts_--;
+                cerr << pthread_self() << ": " << "RECEIVED DONE" << endl;
                 mutex->done_.push_back(socket);
-                mutex->done_.push_back(mutex->idtosockets_[m.processid()]);
                 break;
             default:
                 cerr << "UNKNOWN MESSAGE TYPE..." << endl;
@@ -105,60 +98,51 @@ void *Mutex::listener(void *p)
     return NULL;
 }
 
+void *Mutex::sender(void *p)
+{
+    vector<OutgoingMessage> *outgoing = ((senderparams*)p)->outgoing;
+    Mutex *mutex = ((senderparams*)p)->mutex;
+
+    while(mutex->ready_)
+    {
+        pthread_mutex_lock(&mutex_);
+        pthread_cond_wait(&mutex->cond_, &mutex_);
+        for(vector<OutgoingMessage>::iterator it = outgoing->begin(); it != outgoing->end(); ++it)
+        {
+            it->first->write(it->second);
+        }
+        outgoing->clear();
+        pthread_mutex_unlock(&mutex_);
+    }
+
+    return NULL;
+}
+
 void Mutex::initialize(vector<host> &hosts, uint16_t port)
 {
     pthread_mutex_init(&mutex_, NULL);
+    pthread_cond_init(&cond_, NULL);
+
     vector<pthread_t*> lthreadids;
-    vector<pthread_t*> cthreadids;
-    vector<outparams*> cparams;
-    inparams p;
-    p.socket = &serversocket_;
+    pthread_t senderid;
+    senderparams *sparams = new senderparams;
 
     for(vector<host>::iterator it = hosts.begin(); it != hosts.end(); ++it)
     {
-        lthreadids.push_back(new pthread_t);
-        pthread_create( lthreadids.back(), 0, inconnector, &p );
+        if(it->port < port)
+        {
+            sockets_.push_back(new Socket(it->hostname, it->port));
+            cerr << processid_ << ": Connected to " << it->hostname << ":" << it->port << endl;
+        }
     }
 
-    for(vector<host>::iterator it = hosts.begin(); it != hosts.end(); ++it)
+    while(sockets_.size() < numhosts_)
     {
-        cthreadids.push_back(new pthread_t);
-        cparams.push_back(new outparams);
-        cparams.back()->host = it->hostname;
-        cparams.back()->port = it->port;
-
-        pthread_create( cthreadids.back(), 0, outconnector, cparams.back() );
+        sockets_.push_back(new Socket(serversocket_.acceptConnection()));
     }
-
-    for(vector<pthread_t*>::iterator it = lthreadids.begin(); it != lthreadids.end(); ++it)
-    {
-        void *s;
-        pthread_join( *(*it), &s );
-        insockets_.push_back((Socket*)s);
-
-        delete *it;
-    }
-    lthreadids.clear();
-
-    for(vector<pthread_t*>::iterator it = cthreadids.begin(); it != cthreadids.end(); ++it)
-    {
-        void *s;
-        pthread_join( *(*it), &s );
-        outsockets_.push_back((Socket*)s);
-
-        delete *it;
-    }
-    cthreadids.clear();
-
-
-    for(vector<outparams*>::iterator it = cparams.begin(); it != cparams.end(); ++it)
-    {
-        delete *it;
-    }
-    cparams.clear();
 
     vector<listenerparams*> lparams;
-    for(vector<Socket*>::iterator it = insockets_.begin(); it != insockets_.end(); ++it)
+    for(vector<Socket*>::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
     {
         lthreadids.push_back(new pthread_t);
         lparams.push_back(new listenerparams);
@@ -168,39 +152,38 @@ void Mutex::initialize(vector<host> &hosts, uint16_t port)
         pthread_create(lthreadids.back(), 0, listener, lparams.back());
     }
 
-    for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
-    {
-        (*it)->write( Message(HELLO, processid_) );
-        Message m((*it)->read());
-        idtosockets_[m.processid()] = (*it);
-    }
+    cerr << processid_ << ": is connected to " << sockets_.size() << " hosts" << endl;
 
     sleep(1);
 
-    if( outsockets_.size() == insockets_.size() && insockets_.size() == hosts.size() )
+    if( sockets_.size() == numhosts_ )
     {
         ready_ = true;
     }
+
+    sparams->outgoing = &outgoing_;
+    sparams->mutex = this;
+    pthread_create(&senderid, NULL, sender, sparams);
 }
 
 void Mutex::requestCS()
 {
-    usleep(100000);
-
+    usleep(1000000);
     {
         LocalMutex m(&mutex_);
         requestingcs_ = true;
         sequenceno_ = highestsequence_ + 1;
         outstandingreplies_ = numhosts_;
 
-        cout << "Sending REQs, seqno=" << sequenceno_ << endl;
-        for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
+        cerr << "Sending REQs, seqno=" << sequenceno_ << endl;
+        for(vector<Socket*>::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
         {
-            (*it)->write( Message(REQ, processid_, sequenceno_) );
+            outgoing_.push_back( OutgoingMessage((*it), Message(REQ, processid_, sequenceno_)) );
         }
+        pthread_cond_signal(&cond_);
     }
 
-    cout << "Waiting for " << outstandingreplies_ << " replies" << endl;
+    cerr << "Waiting for " << outstandingreplies_ << " replies" << endl;
 
     while(true) 
     {
@@ -209,8 +192,9 @@ void Mutex::requestCS()
             if (outstandingreplies_ == 0)
                 break;
         }
-        usleep(50);
     }
+
+    cerr << "Received all replies, entering CS" << endl;
 }
 
 void Mutex::releaseCS()
@@ -220,31 +204,40 @@ void Mutex::releaseCS()
     requestingcs_ = false;
     highestsequence_ = max(highestsequence_, sequenceno_);
     
-    for(list<Socket*>::iterator it = deferred_.begin(); it != deferred_.end(); it = deferred_.begin())
+    for(list<Socket*>::iterator it = deferred_.begin(); it != deferred_.end(); ++it)
     {
-        cout << "SENDING DEFERRED REPLY, seqno=" << sequenceno_ << endl;
-        (*it)->write( Message(REPLY, processid_, sequenceno_) );
-        deferred_.erase(it);
+        outgoing_.push_back( OutgoingMessage((*it), Message(REPLY, processid_, sequenceno_)) );
     }
+    pthread_cond_signal(&cond_);
+    deferred_.clear();
 }
 
 void Mutex::finish()
 { 
-    for(vector<Socket*>::iterator it = outsockets_.begin(); it != outsockets_.end(); ++it)
+    cerr << processid_ << ": Is done, sending DONE message" << endl;
+    for(vector<Socket*>::iterator it = sockets_.begin(); it != sockets_.end(); ++it)
     {
-        (*it)->write( Message(DONE, processid_) );
+        LocalMutex _(&mutex_);
+        outgoing_.push_back( OutgoingMessage((*it), Message(DONE, processid_)) );
     }
+    pthread_cond_signal(&cond_);
 
     while( numhosts_ > 0 ) 
     {
         sleep(1);
-        for(list<Socket*>::iterator it = done_.begin(); it != done_.end(); it = done_.begin())
         {
-            (*it)->closeSock();
-            delete *it;
-            done_.erase(it);
+            LocalMutex _(&mutex_);
+            for(list<Socket*>::iterator it = done_.begin(); it != done_.end(); it = done_.begin())
+            {
+                numhosts_--;
+                (*it)->closeSock();
+                delete *it;
+                done_.erase(it);
+            }
         }
     }
+
+    ready_ = false;
 }
 
 #endif /*FAKEMUTEX*/

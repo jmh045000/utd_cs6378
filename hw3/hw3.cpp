@@ -15,17 +15,6 @@ using namespace std;
 #include "Mutex.h"
 #include "Socket.h"
 
-typedef struct
-{
-    uint16_t    port;
-} listenerparams_t;
-
-typedef struct
-{
-    string      hostname;
-    uint16_t    port;
-} senderparams_t;
-
 int main(int argc, char *argv[])
 {
     if(argc < 2)

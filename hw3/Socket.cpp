@@ -10,6 +10,7 @@
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::flush;
 using std::exception;
 using std::string;
 using std::vector;
@@ -21,6 +22,7 @@ extern "C"
 #   include <netinet/in.h>
 #   include <netdb.h>
 #   include <arpa/inet.h>
+#   include <netinet/tcp.h>
 
 
 #   include <errno.h>
@@ -68,7 +70,7 @@ Socket::Socket(struct sockaddr *saddr, uint32_t retries) : connected(false), soc
 
 Socket::~Socket()
 {
-    cerr << "~Socket: " << sockFD << endl;
+    //cerr << "~Socket: " << sockFD << endl;
 }
 
 void Socket::closeSock()
@@ -128,23 +130,28 @@ void Socket::connectFD(struct sockaddr * saddr, uint32_t retries) //default to r
     {
         cerr << __LINE__ << endl; throw exception();
     }
+
+    int flag = 1;
+    int rc = setsockopt(sockFD, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+    if(rc != 0)
+    {
+        perror("setsockopt(TCP_NODELAY)");
+    }
 }
 
 //send current contents of myBuf to peer
-int Socket::output()
+int Socket::output(string data)
 {
     //don't forget to add 1 for \0
-    int length = myBuf.str().length()+1;
+    int length = data.length()+1;
 #ifdef SOCKET_DEBUG
-    cerr << "Sending: '" << myBuf.str() << "' on socket (" << sockFD << ")" << endl;
+    cerr << "Sending: '" << data << "' on socket (" << sockFD << ")" << endl;
 #endif
-    string str = myBuf.str();
-    const char *buf = str.c_str();
-    int retVal = send(sockFD, buf, str.length()+1 , 0);
+    const char *buf = data.c_str();
+    int retVal = send(sockFD, buf, length , 0);
 
     if(retVal == length) {
-        myBuf.ignore();
-        myBuf.seekg(0, std::ios::beg);
+        cerr << "Finished sending '" << data << "' on socket (" << sockFD << ")" << endl;
     }
     else if (retVal < 0) {
         std::stringstream ss;
@@ -160,52 +167,49 @@ int Socket::output()
 }
 
 //receive from peer into myBuf
-int Socket::input()
+string Socket::input()
 {
     char buffer[4096];
     memset(buffer, 0, 4096);
 
     if (!connected)
     {
-        cerr << __FILE__"," << __LINE__ << endl;
+        //cerr << __FILE__"," << __LINE__ << endl;
         cerr << __LINE__ << endl; throw exception();
     }
 
-
         struct timeval tv;
         memset(&tv, 0, sizeof(struct timeval));
-        tv.tv_sec = 5;
+        tv.tv_sec = 0;
+        tv.tv_usec = 50;
 
         setsockopt(sockFD, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
 
     int retVal;
-RETRY:
-        cerr << "Calling recv on socket (" << sockFD << ")" << endl;
         retVal = recv(sockFD, buffer, 4096, 0);
-        cerr << "recv on socket (" << sockFD << ") returned: " << buffer << endl;
 
     if(retVal > 0) {
-        myBuf.str(buffer);
+#ifdef SOCKET_DEBUG
+        cerr << "Received: " << buffer << endl;
+#endif
+        return string(buffer);
     }
     else if(retVal < 0)
     {
         if(errno == EAGAIN || errno == EWOULDBLOCK)
-            goto RETRY;
-        cout << strerror(errno) << endl;
+            return "";
+        //cout << strerror(errno) << endl;
         cerr << errno << ":" << __LINE__ << endl; throw exception();
     }
     if (retVal == 0) {
         connected=false;
         close(sockFD);
         sockFD=-1;
-        cerr << __LINE__ << endl; throw exception();
+        throw ClosedException();
     }
 
-#ifdef SOCKET_DEBUG
-    cerr << "Received: " << buffer << endl;
-#endif
 
-    return retVal;
+    return string("");
 }
 
 //open a listen socket on the specified port
@@ -258,6 +262,14 @@ Socket ListenSocket::acceptConnection()
     newFD = accept(sockFD, &addr, &len);
     if(newFD < 0)
         perror("accept()");
+
+    int flag = 1;
+    int rc = setsockopt(newFD, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+    if(rc != 0)
+    {
+        perror("setsockopt(TCP_NODELAY)");
+    }
+
     Socket s(newFD);
     return s;
 }

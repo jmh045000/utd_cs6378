@@ -6,22 +6,23 @@
 #include <sstream>
 #include <string>
 
+class ClosedException : public std::exception {};
+
 //simple wrapper around BSD tcp sockets
 //  basic idea is to write the code to deal with opening/closing sockets once
 class Socket
 {
 protected:
-    // Vars:
-    std::stringstream myBuf;
 
+    //Vars:
     bool connected;
     int sockFD;
     
     //Functions:
     void createFD(void);
     void connectFD(struct sockaddr * psaddr, uint32_t retries=50);   //default to retry 50 times
-    int output();
-    int input();
+    int output(std::string data);
+    std::string input();
 
 public:
     Socket() {}
@@ -32,8 +33,8 @@ public:
     ~Socket();
     bool isConnected() { return connected; }
 
-    void write(std::string data) { myBuf << data; output(); myBuf.str(""); }
-    std::string read() {input(); std::string str = myBuf.str(); myBuf.str(""); return str;}
+    void write(std::string data) { output(data); }
+    std::string read() { return input(); }
 
     void closeSock();
 
@@ -44,7 +45,6 @@ public:
             ostr << "Connected with FD: " << s.sockFD;
         else
             ostr << "Not Connected";
-        ostr << ", buffer contains: " << s.myBuf.str();
         return ostr;
     }
 };
