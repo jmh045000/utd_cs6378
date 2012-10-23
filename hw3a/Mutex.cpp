@@ -255,7 +255,7 @@ void Mutex::initialize(vector<host> hosts, uint16_t port)
 
 Mutex::Mutex(int processid, vector<host> hosts, uint16_t port) :
     processid_(processid), numhosts_(hosts.size()),
-    sequenceno_(0), highestsequenceno_(0)
+    sequenceno_(65535), highestsequenceno_(0)
 {
     initialize(hosts, port);
 }
