@@ -1,0 +1,111 @@
+#!/usr/bin/python -u
+
+import os
+import shutil
+import subprocess
+import sys
+import time
+import threading
+
+class Host(object):
+    def __init__(self, id, hostname, port):
+        self.id = id
+        self.hostname = hostname
+        self.port = port
+
+    def __str__(self):
+        return '%s %s' % (self.hostname, self.port)
+
+def runprog(host, path, config):
+    proc = subprocess.Popen(['ssh', host, 'cd %s ; ./dmutex %s' % (path, config)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    outputfile = open(os.path.join(path, '%slog' % config), 'w')
+    outputfile.write('STDOUT:\n')
+    outputfile.write(out)
+    outputfile.write('STDERR:\n')
+    outputfile.write(err)
+    rc = proc.wait()
+    return rc
+
+def main(argv):
+
+    if not len(argv) > 0:
+        return
+
+    testdir = os.path.join(os.path.expanduser('~'), 'dmutextestdir')
+
+    print 'Removing test file from any previous runs...'
+    for file in ['dmutex', 'dmutextest']:
+        try:
+            os.unlink(os.path.join(testdir, file))
+        except OSError, e:
+            pass
+
+    hosts = []
+    for i,arg in enumerate(argv):
+        h = Host(i, arg, 14000+i)
+        hosts.append(h)
+
+    try:
+        os.mkdir(testdir)
+    except OSError, e:
+        shutil.rmtree(testdir)
+        os.mkdir(testdir)
+
+    print 'Copying binary to test directory...'
+    shutil.copy2('dmutex', testdir)
+
+    print 'Creating config files',
+
+    for h in hosts:
+        conffile = open(os.path.join(testdir, 'config%s' % h.id), 'w')
+        confstring = '%s\n%s\n' % (h.id, h.port)
+        for h1 in hosts:
+            if not h is h1:
+                confstring = confstring + str(h1) + '\n'
+        conffile.write(confstring)
+        conffile.close()
+        print '.',
+
+    print
+
+    print 'Sleeping for 1 second to let NFS catch up...'
+    time.sleep(1)
+
+    print 'Starting processes',
+
+    threads = []
+    for h in hosts:
+        t = threading.Thread(target=runprog, args=(h.hostname, testdir, os.path.join(testdir, 'config%s' % h.id)))
+        t.start()
+        threads.append(t)
+        print '.',
+
+    print
+
+    print 'Waiting for processes to exit',
+    for t in threads:
+        t.join()
+        print '.',
+    print
+
+    output = open(os.path.join(testdir, 'dmutextest')).read()
+
+    print 'Checking output...',
+    for line in output.splitlines():
+        if line != 'The quick brown fox jumped over the lazy dog ':
+            print 'FAIL'
+            print 'Output from distributed mutex test:',
+            print len(output.splitlines()), 'lines'
+            print output
+            break
+    else:
+        if len(output.splitlines()) == len(hosts)*10:
+            print 'PASS'
+        else:
+            print 'FAIL'
+            print 'Wrong number of lines'
+
+main(sys.argv[1:])
+        
+    
