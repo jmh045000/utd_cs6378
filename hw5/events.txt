@@ -1,0 +1,11 @@
+# 0 is \bottom
+S	A	P	Q	1
+R	A	P	Q	1
+S	A	P	R	2
+S	A	Q	R	2
+R	A	P	R	2
+R	A	Q	R	2
+C	P
+C	Q
+S	C	Q	P	1
+R	C	Q	P	1
