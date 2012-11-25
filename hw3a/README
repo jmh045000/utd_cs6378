@@ -1,0 +1,21 @@
+This project can build two executables.
+One uses a real distributed mutex to allow access to the critical section in hw3.cpp
+The other is a fake mutex that simply returns as soon as it's called.
+
+When running both of these, it is easy to see that there is contention among the processes.
+In the real mutex version, the output is the same on every line, and each process prints 10 lines.
+In the fake version, the output becomes jumbled and mixed up, as each process writes to the file at the same time.
+
+To build the real mutex:
+make -B
+
+To build the fake mutex:
+make fakedmutex
+
+To test:
+./test <host1> <host2> ... <hostN>
+Where N can be up to 25
+
+This test creates the configuration files, then executes the program on all the hosts specified.
+It then compares the output file, in ~/dmutextestdir/dmutextest, to make sure that it matches the expected output.  That is, every line is equal to "The quick brown fox jumps over the lazy dog ", and there are 10*<N> lines in the file.
+If the comparison fails, the output is printed, which is the case for a fake mutex.

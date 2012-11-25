@@ -34,7 +34,7 @@ def main(argv):
 
     testdir = os.path.join(os.path.expanduser('~'), 'dmutextestdir')
 
-    print 'Removing test file from any previous runs...'
+    print 'Removing test files from any previous runs...'
     for file in ['dmutex', 'dmutextest']:
         try:
             os.unlink(os.path.join(testdir, file))
@@ -49,8 +49,7 @@ def main(argv):
     try:
         os.mkdir(testdir)
     except OSError, e:
-        shutil.rmtree(testdir)
-        os.mkdir(testdir)
+        pass
 
     print 'Copying binary to test directory...'
     shutil.copy2('dmutex', testdir)
@@ -69,8 +68,8 @@ def main(argv):
 
     print
 
-    print 'Sleeping for 1 second to let NFS catch up...'
-    time.sleep(1)
+    print 'Sleeping for 5 seconds to let NFS catch up...'
+    time.sleep(5)
 
     print 'Starting processes',
 
@@ -88,6 +87,9 @@ def main(argv):
         t.join()
         print '.',
     print
+
+    print 'Sleeping for 5 seconds to let NFS catch up...'
+    time.sleep(5)
 
     output = open(os.path.join(testdir, 'dmutextest')).read()
 
