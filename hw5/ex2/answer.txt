@@ -1,0 +1,10 @@
+P:S	Q	A	1
+Q:R	P	A	1
+Q:C
+Q:C	T
+Q:S	P	C	1
+P:R	Q	C	1
+P:C	T
+P:S	Q	R	YES
+Q:S	P	PERM
+P:PERM

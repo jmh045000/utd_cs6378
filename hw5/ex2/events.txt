@@ -1,0 +1,6 @@
+S	A	P	Q	1
+R	A	P	Q	1
+C	Q
+R	C	Q	P	1
+R	R	P	Q	YES
+R	D	Q	P	PERM

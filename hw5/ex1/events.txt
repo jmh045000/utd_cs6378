@@ -1,0 +1,39 @@
+# 0 is \bottom
+# Structure of the events.txt file:
+# For send/receive:
+# <action> <type> <sender> <receiver> <id>
+# <action> = S | R
+# <type> = A | C | R | D
+# where A=application message
+# C=checkpoint request
+# R=checkpoint reply
+# D=checkpoint decision
+# <sender> | <receiver> = [Process defined in topology.txt]
+# <id> = [Message label] | YES | NO | PERM | UNDO
+# Where YES/NO is a checkpoint reply
+# PERM/UNDO is a checkpoing decision (to make a tentative checkpoint permanent or not)
+# Sending of checkpoint messages isn't recorded in the events log, but they
+# are printed in the report.txt
+# This way, sending is determined as a response to the start of the algorithm
+# or receiving replies
+S	A	P	Q	1
+R	A	P	Q	1
+S	A	P	R	2
+S	A	Q	R	2
+R	A	P	R	2
+R	A	Q	R	2
+S	A	R	Q	3
+R	A	R	Q	3
+#Start checkpoint algorithm
+#Since P has not received any messages, it won't actually do anything
+C	P
+#Q has received messages, so it sends checkpoint requests to P and R
+C	Q
+R	C	Q	P	1
+R	C	Q	R	3
+R	R	P	Q	YES
+R	C	R	P	2
+R	R	P	R	YES
+R	R	R	Q	YES
+R	D	Q	P	PERM
+R	D	Q	R	PERM
