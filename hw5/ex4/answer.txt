@@ -1,0 +1,133 @@
+R:S	Q	A	0
+Q:R	R	A	0
+P:S	Q	A	0
+Q:R	P	A	0
+R:S	P	A	0
+P:R	R	A	0
+P:S	R	A	1
+R:R	P	A	1
+R:S	Q	A	1
+Q:R	R	A	1
+Q:S	R	A	1
+R:R	Q	A	1
+R:S	Q	A	2
+Q:R	R	A	2
+P:S	R	A	3
+R:R	P	A	3
+P:S	R	A	4
+R:R	P	A	4
+R:S	P	A	2
+P:R	R	A	2
+Q:S	P	A	2
+P:R	Q	A	2
+R:S	Q	A	3
+Q:R	R	A	3
+Q:S	R	A	3
+R:R	Q	A	3
+Q:S	R	A	4
+R:R	Q	A	4
+Q:S	R	A	5
+R:R	Q	A	5
+Q:S	P	A	3
+P:R	Q	A	3
+P:S	Q	A	1
+Q:R	P	A	1
+P:S	R	A	2
+R:R	P	A	2
+Q:S	R	A	4
+R:R	Q	A	4
+Q:S	R	A	5
+R:R	Q	A	5
+R:S	P	A	4
+P:R	R	A	4
+P:C
+P:C	T
+P:S	R	C	4
+P:S	Q	C	3
+R:R	P	C	4
+R:C	T
+R:S	Q	C	5
+Q:R	P	C	3
+Q:C	T
+Q:S	R	C	3
+Q:R	R	C	5
+Q:S	R	R	YES
+Q:S	P	R	YES
+R:R	Q	C	3
+R:S	Q	R	YES
+R:S	P	R	YES
+R:S	P	R	YES
+P:PERM
+P:S	R	PERM
+P:S	Q	PERM
+R:PERM
+Q:PERM
+P:C
+R:S	P	A	5
+P:R	R	A	5
+R:S	Q	A	6
+Q:R	R	A	6
+Q:S	R	A	6
+R:R	Q	A	6
+R:S	P	A	7
+P:R	R	A	7
+Q:S	R	A	8
+R:R	Q	A	8
+P:S	R	A	6
+R:R	P	A	6
+Q:S	P	A	9
+P:R	Q	A	9
+R:S	P	A	8
+P:R	R	A	8
+P:S	Q	A	3
+Q:R	P	A	3
+Q:S	P	A	11
+P:R	Q	A	11
+P:S	Q	A	4
+Q:R	P	A	4
+P:S	R	A	5
+R:R	P	A	5
+R:S	Q	A	9
+Q:R	R	A	9
+P:S	Q	A	6
+Q:R	P	A	6
+R:S	P	A	11
+P:R	R	A	11
+P:S	R	A	7
+R:R	P	A	7
+R:S	Q	A	13
+Q:R	R	A	13
+Q:S	R	A	12
+R:R	Q	A	12
+R:S	Q	A	14
+Q:R	R	A	14
+P:S	R	A	8
+R:R	P	A	8
+P:S	R	A	9
+R:R	P	A	9
+P:S	Q	A	10
+Q:R	P	A	10
+P:S	Q	A	11
+Q:R	P	A	11
+P:C
+P:C	T
+P:S	R	C	11
+P:S	Q	C	11
+R:R	P	C	11
+R:C	T
+R:S	Q	C	12
+Q:R	P	C	11
+Q:C	T
+Q:S	R	C	14
+Q:R	R	C	12
+Q:S	R	R	YES
+Q:S	P	R	YES
+R:R	Q	C	14
+R:S	Q	R	YES
+R:S	P	R	YES
+R:S	P	R	YES
+P:PERM
+P:S	R	PERM
+P:S	Q	PERM
+R:PERM
+Q:PERM

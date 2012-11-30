@@ -37,3 +37,12 @@ R	R	P	R	YES
 R	R	R	Q	YES
 R	D	Q	P	PERM
 R	D	Q	R	PERM
+#Since we just took a checkpoint, taking another will achieve nothing
+C   P
+S   A   R   P   4
+R   A   R   P   4
+#Here, we'll take a real checkpoing
+C   P
+R   C   P   R   4
+R   R   R   P   YES
+R   D   P   R   PERM

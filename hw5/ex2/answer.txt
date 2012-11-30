@@ -6,5 +6,6 @@ Q:S	P	C	1
 P:R	Q	C	1
 P:C	T
 P:S	Q	R	YES
+Q:PERM
 Q:S	P	PERM
 P:PERM

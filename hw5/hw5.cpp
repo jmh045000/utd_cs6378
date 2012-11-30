@@ -238,10 +238,7 @@ void Process::send_ckpt_reply(char receiver)
     }
     else
     {
-        for(ProcessList::iterator it = ckpt_cohorts.begin(); it != ckpt_cohorts.end(); ++it)
-        {
-            *OUT << id_ << ":S\t" << *it << "\t" << (willing_to_ckpt ? "PERM" : "UNDO") << endl;
-        }
+        send_ckpt_decision(Message( ( willing_to_ckpt ? "PERM" : "UNDO" )));
     }
 }
 
@@ -261,15 +258,6 @@ void Process::recv_ckpt_reply(Message m, Process other_process)
 
 void Process::send_ckpt_decision(Message m)
 {
-    for(ProcessList::iterator it = ckpt_cohorts.begin(); it != ckpt_cohorts.end(); ++it)
-    {
-        *OUT << id_ << ":S\t" << *it << "\t" << m.reply << endl;
-    }
-}
-    
-
-void Process::recv_ckpt_decision(Message m, Process other_process)
-{
     if(m.reply == "UNDO")
     {
         *OUT << id_ << ":UNDO" << endl;
@@ -278,6 +266,16 @@ void Process::recv_ckpt_decision(Message m, Process other_process)
     {
         *OUT << id_ << ":PERM" << endl;
     }
+    for(ProcessList::iterator it = ckpt_cohorts.begin(); it != ckpt_cohorts.end(); ++it)
+    {
+        *OUT << id_ << ":S\t" << *it << "\t" << m.reply << endl;
+    }
+    ckpt_cohorts.clear();
+}
+    
+
+void Process::recv_ckpt_decision(Message m, Process other_process)
+{
     send_ckpt_decision(m);
     tentative_taken = false;
 }
