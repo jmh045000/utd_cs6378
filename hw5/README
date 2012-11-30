@@ -1,0 +1,30 @@
+To build:
+make
+
+To run:
+cd ex[1-4] ; ../hw5
+
+
+I've included 4 examples.
+Each example has an events.txt, topology.txt, and answer.txt file.
+
+The events and topology file can have comments, if the line starts with a '#'.  Example 1 shows the use of this and details the formatting of the events file.
+
+The spacing in the events and topology file can be any form of whitespace, I used tabs to stay consistent with Dr. McMahan.
+The answer (and report) files are organized as such:
+<process>:<type of event> [more info]
+where <process> is the process performing an event
+<type of event> can be one of: S, R, C, PERM, or UNDO
+S is a send event, if a process sends a message
+[more info] = <process which will receive the message> <type of message> <seq no>
+R is a receive event
+[more info] = <sending process> <type of message> <seq no>
+In the above two, type of message can be A, C, or R.  Where A is an APP message, C is a checkpoint request, R is a checkpoint reply
+C is a checkpoint event
+[more info] = nothing/'T'
+where 'T' signifies taking a tentative checkpoint
+
+PERM/UNDO means taking a permanent checkpoint or undoing a tentative checkpoint.
+
+James Hall
+
